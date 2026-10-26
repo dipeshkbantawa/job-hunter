@@ -1,0 +1,62 @@
+# Copy to config.yaml and edit. config.yaml, cv/ and data/ are git-ignored.
+
+profile:                      # used to autofill application forms
+  first_name: Your
+  last_name: Name
+  email: you@example.com
+  phone: "+977 98XXXXXXXX"
+  location: Kathmandu, Nepal
+  linkedin: https://www.linkedin.com/in/your-handle
+  github: https://github.com/your-handle
+  website: ""
+  current_company: ""
+  current_title: Systems Administrator
+  years_experience: 5
+  notice_period: 30 days
+  salary_expectation: ""
+  resume: cv/My_CV.pdf         # PDF, DOCX or TXT - also used to score jobs
+  cover_letter: ""             # optional file attached to "cover letter" upload fields
+
+search:
+  keywords:                    # each keyword is searched separately
+    - system administrator
+    - devops engineer
+    - cloud engineer
+    - IT support
+  skills:                      # each skill found in a posting adds to its score
+    [Microsoft 365, Exchange Online, Azure, Entra ID, Intune, PowerShell, Python,
+     Active Directory, Linux, Windows Server, AWS, Docker, Kubernetes, Terraform,
+     networking, security, SIEM, Defender]
+  must_have_any: []            # optional: posting must contain at least one of these
+  exclude:                     # drop postings containing any of these
+    - US citizens only
+    - security clearance
+    - must reside in the US
+    - "W2 only"
+  remote_only: true
+  location: ""                 # used for LinkedIn/Indeed links when remote_only is false
+  max_age_days: 14
+  min_score: 30
+  sources: [remotive, jobicy, remoteok, arbeitnow, himalayas, weworkremotely, greenhouse, lever]
+  greenhouse_boards: []        # company slug from boards.greenhouse.io/<slug>, e.g. gitlab
+  lever_companies: []          # company slug from jobs.lever.co/<slug>
+  google_cse:                  # optional: https://programmablesearchengine.google.com
+    api_key: ""
+    cx: ""
+
+browser:
+  channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
+
+career_sites:                  # opened by `python -m hunter update-cv`
+  - name: LinkedIn (saved resumes for Easy Apply)
+    url: https://www.linkedin.com/jobs/application-settings/
+  - name: Indeed
+    url: https://profile.indeed.com/
+  - name: Wellfound
+    url: https://wellfound.com/profile/edit/overview
+  - name: Himalayas
+    url: https://himalayas.app/profile
+  - name: Naukri
+    url: https://www.naukri.com/mnjuser/profile
+  - name: Glassdoor
+    url: https://www.glassdoor.com/member/profile/index.htm
