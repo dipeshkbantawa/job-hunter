@@ -22,25 +22,40 @@ class Tracker:
         self.db = sqlite3.connect(str(path))
         self.db.row_factory = sqlite3.Row
         self.db.execute(SCHEMA)
+        cols = {r[1] for r in self.db.execute("PRAGMA table_info(jobs)")}
+        for col, typ in (("region", "TEXT"), ("region_rank", "INTEGER")):
+            if col not in cols:  # databases created before region support
+                self.db.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typ}")
 
-    def upsert(self, job, score: int, matched: list) -> bool:
-        """Insert a job; returns True if it was new. Existing rows only get their score refreshed."""
+    def upsert(self, job, score: int, matched: list, region=None, rank=None) -> bool:
+        """Insert a job; returns True if it was new. Existing rows only get score/region refreshed."""
         cur = self.db.execute(
-            "INSERT OR IGNORE INTO jobs (id, source, title, company, location, url, posted, score, matched, found_at)"
-            " VALUES (?,?,?,?,?,?,?,?,?,?)",
+            "INSERT OR IGNORE INTO jobs (id, source, title, company, location, url, posted, score, matched,"
+            " found_at, region, region_rank) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
             (job.id, job.source, job.title, job.company, job.location, job.url, job.posted,
-             score, ", ".join(matched), datetime.now().isoformat(timespec="seconds")))
+             score, ", ".join(matched), datetime.now().isoformat(timespec="seconds"), region, rank))
         if cur.rowcount == 0:
-            self.db.execute("UPDATE jobs SET score=?, matched=? WHERE id=?", (score, ", ".join(matched), job.id))
+            self.db.execute("UPDATE jobs SET score=?, matched=?, region=?, region_rank=? WHERE id=?",
+                            (score, ", ".join(matched), region, rank, job.id))
         self.db.commit()
         return cur.rowcount == 1
 
-    def list(self, status=None, min_score=0, limit=50):
+    def prune_unplaced(self) -> int:
+        """Drop untouched jobs that don't belong to any of your regions (e.g. found before regions were set)."""
+        n = self.db.execute("DELETE FROM jobs WHERE status='new' AND region IS NULL").rowcount
+        self.db.commit()
+        return n
+
+    def list(self, status=None, min_score=0, limit=50, region=None):
+        """Your region priority first, then best score."""
         sql, args = "SELECT * FROM jobs WHERE score >= ?", [min_score]
         if status:
             sql += " AND status = ?"
             args.append(status)
-        sql += " ORDER BY score DESC, posted DESC LIMIT ?"
+        if region:
+            sql += " AND lower(region) LIKE ?"
+            args.append(region.lower() + "%")
+        sql += " ORDER BY COALESCE(region_rank, 99), score DESC, posted DESC LIMIT ?"
         args.append(limit)
         return self.db.execute(sql, args).fetchall()
 

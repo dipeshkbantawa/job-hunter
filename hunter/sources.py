@@ -16,6 +16,8 @@ from urllib.parse import urlparse
 
 import requests
 
+from .links import region
+
 HEADERS = {"User-Agent": "Mozilla/5.0 (personal job-hunter script)"}
 TIMEOUT = 25
 
@@ -84,12 +86,20 @@ def remotive(keyword):
                   j.get("tags") or [], strip_html(j.get("description")))
 
 
-def jobicy(keyword):
-    data = _get("https://jobicy.com/api/v2/remote-jobs", {"count": 50, "tag": keyword}).json()
+def _jobicy_jobs(data):
     for j in data.get("jobs", []) or []:
         yield Job("jobicy", strip_html(j.get("jobTitle")), j.get("companyName", ""), j.get("url", ""),
                   j.get("jobGeo", ""), to_date(j.get("pubDate")),
                   j.get("jobIndustry") or [], strip_html(j.get("jobDescription") or j.get("jobExcerpt")))
+
+
+def jobicy(keyword):
+    yield from _jobicy_jobs(_get("https://jobicy.com/api/v2/remote-jobs", {"count": 50, "tag": keyword}).json())
+
+
+def jobicy_geo(geo):
+    """Remote jobs open to residents of a country/region (Jobicy's geo filter, e.g. australia, apac)."""
+    yield from _jobicy_jobs(_get("https://jobicy.com/api/v2/remote-jobs", {"count": 100, "geo": geo}).json())
 
 
 def google_cse(keyword, api_key, cx, max_age_days=7):
@@ -212,6 +222,13 @@ def collect(search: dict) -> list:
                 found = _safe(f"{name} '{kw}'", fn(kw))
                 print(f"  {name:<15} {kw!r:<30} {len(found)}")
                 jobs += found
+
+    if "jobicy" in enabled:
+        geos = dict.fromkeys(region(r).get("jobicy") for r in search.get("regions") or [])
+        for geo in filter(None, geos):
+            found = _safe(f"jobicy geo={geo}", jobicy_geo(geo))
+            print(f"  {'jobicy':<15} {'geo=' + geo:<30} {len(found)}")
+            jobs += found
 
     for name, fn in FEED_SOURCES.items():
         if name in enabled:

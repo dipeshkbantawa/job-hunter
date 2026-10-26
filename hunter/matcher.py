@@ -3,6 +3,8 @@ import re
 from datetime import date, timedelta
 from pathlib import Path
 
+from . import links
+
 STOPWORDS = set("""a an the and or of to in on for with at by from as is are be will you your we our
 our their this that these those it its into about over under who what when where how all any
 can may must should would could have has had not but if than then also more most such per
@@ -47,9 +49,20 @@ def relevant(job, keywords) -> bool:
     return False
 
 
+def match_region(job, search: dict):
+    """(rank, region label) of the first region in your priority list that fits the job, else None."""
+    for rank, name in enumerate(search.get("regions") or [], 1):
+        if links.matches(job, name):
+            return rank, links.region(name)["label"]
+    return None
+
+
 def passes(job, search: dict) -> bool:
     text = job.text + " " + job.location.lower()
-    if search.get("remote_only", True) and not (job.remote or "remote" in text):
+    if search.get("regions"):
+        if match_region(job, search) is None:
+            return False
+    elif search.get("remote_only", True) and not (job.remote or "remote" in text):
         return False
     if any(x.lower() in text for x in search.get("exclude") or []):
         return False
@@ -57,7 +70,8 @@ def passes(job, search: dict) -> bool:
     if must and not any(x.lower() in text for x in must):
         return False
     max_age = search.get("max_age_days")
-    if max_age and job.posted and job.posted < (date.today() - timedelta(days=max_age)).isoformat():
+    # company boards (greenhouse/lever) only list open roles, so an older post date is still live
+    if max_age and job.source not in ("greenhouse", "lever") and job.posted and job.posted < (date.today() - timedelta(days=max_age)).isoformat():
         return False
     return relevant(job, search.get("keywords") or [])
 

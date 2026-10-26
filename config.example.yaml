@@ -18,11 +18,18 @@ profile:                      # used to autofill application forms
   cover_letter: ""             # optional file attached to "cover letter" upload fields
 
 search:
-  keywords:                    # each keyword is searched separately
+  keywords:                    # each keyword is searched separately; matched against job titles
     - system administrator
+    - systems engineer
     - devops engineer
     - cloud engineer
+    - infrastructure engineer
+    - site reliability
+    - network engineer
+    - security engineer
+    - security analyst
     - IT support
+    - IT manager
   skills:                      # each skill found in a posting adds to its score
     [Microsoft 365, Exchange Online, Azure, Entra ID, Intune, PowerShell, Python,
      Active Directory, Linux, Windows Server, AWS, Docker, Kubernetes, Terraform,
@@ -33,13 +40,26 @@ search:
     - security clearance
     - must reside in the US
     - "W2 only"
-  remote_only: true
-  location: ""                 # used for LinkedIn/Indeed links when remote_only is false
+  regions:                     # your priority order. Jobs outside these are dropped.
+    - Remote                   # remote open worldwide / APAC / Asia (not "Remote - USA only")
+    - Australia
+    - New Zealand
+    - South Korea
+    - Dubai
+    - Singapore
+    - Nepal
   max_age_days: 14
   min_score: 30
   sources: [remotive, jobicy, remoteok, arbeitnow, himalayas, weworkremotely, greenhouse, lever]
-  greenhouse_boards: []        # company slug from boards.greenhouse.io/<slug>, e.g. gitlab
-  lever_companies: []          # company slug from jobs.lever.co/<slug>
+  greenhouse_boards:           # company slug from boards.greenhouse.io/<slug>
+    - coupang                  # South Korea
+    - careem                   # Dubai
+    - sendbird                 # South Korea
+    - canonical                # remote worldwide
+    - gitlab                   # remote worldwide
+  lever_companies:             # company slug from jobs.lever.co/<slug>
+    - ninjavan                 # Singapore
+    - deputy                   # Australia
   google_cse:                  # optional: https://programmablesearchengine.google.com
     api_key: ""
     cx: ""
@@ -47,16 +67,26 @@ search:
 browser:
   channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
 
-career_sites:                  # opened by `python -m hunter update-cv`
-  - name: LinkedIn (saved resumes for Easy Apply)
+career_sites:                  # opened by `python -m hunter update-cv` and listed in the digest
+  - name: LinkedIn (Easy Apply resumes)
     url: https://www.linkedin.com/jobs/application-settings/
-  - name: Indeed
+  - name: Indeed (all countries)
     url: https://profile.indeed.com/
+  - name: Glassdoor
+    url: https://www.glassdoor.com/member/profile/index.htm
   - name: Wellfound
     url: https://wellfound.com/profile/edit/overview
   - name: Himalayas
     url: https://himalayas.app/profile
-  - name: Naukri
-    url: https://www.naukri.com/mnjuser/profile
-  - name: Glassdoor
-    url: https://www.glassdoor.com/member/profile/index.htm
+  - name: Seek (Australia + NZ)
+    url: https://au.seek.com/profile/me
+  - name: Bayt (Dubai / UAE)
+    url: https://www.bayt.com/en/myworkspace/
+  - name: JobStreet (Singapore)
+    url: https://sg.jobstreet.com/profile
+  - name: Wanted (South Korea)
+    url: https://www.wanted.co.kr/cv/list
+  - name: Merojob (Nepal)
+    url: https://merojob.com/
+  - name: Kumarijob (Nepal)
+    url: https://www.kumarijob.com/

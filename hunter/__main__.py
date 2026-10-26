@@ -2,7 +2,7 @@
 
     python -m hunter search            # pull remote jobs, score them, write HTML digest
     python -m hunter list              # best unapplied matches
-    python -m hunter links             # LinkedIn / Indeed / Google searches for your keywords
+    python -m hunter links --region Australia   # LinkedIn / Indeed / Google / Seek ... searches
     python -m hunter apply --top 10    # walk through top matches in a browser with autofill
     python -m hunter update-cv         # attach your latest CV on each career site
     python -m hunter mark <id> applied
@@ -14,8 +14,7 @@ from pathlib import Path
 
 import yaml
 
-from . import matcher, sources
-from .links import board_links
+from . import links, matcher, sources
 from .report import write_report
 from .tracker import STATUSES, Tracker
 
@@ -47,10 +46,10 @@ def print_rows(rows):
     if not rows:
         print("  (nothing)")
         return
-    print(f"  {'ID':<9}{'SCORE':>5}  {'STATUS':<9} {'POSTED':<11} JOB")
+    print(f"  {'ID':<9}{'SCORE':>5}  {'REGION':<12} {'STATUS':<9} {'POSTED':<11} JOB")
     for r in rows:
-        print(f"  {r['id'][:8]:<9}{r['score']:>5}  {r['status']:<9} {r['posted'] or '':<11} "
-              f"{r['title'][:60]} @ {r['company'][:30]}")
+        print(f"  {r['id'][:8]:<9}{r['score']:>5}  {(r['region'] or '-')[:12]:<12} {r['status']:<9} "
+              f"{r['posted'] or '':<11} {r['title'][:55]} @ {r['company'][:28]}")
 
 
 def cmd_search(cfg, tracker, args):
@@ -60,19 +59,27 @@ def cmd_search(cfg, tracker, args):
     cv = matcher.load_cv_text(cfg["_root"] / cfg["profile"]["resume"]) if cfg["profile"].get("resume") else ""
     cv_tokens = matcher.tokens(cv)
     kept = new = 0
+    per_region = {}
     for job in jobs:
         if not matcher.passes(job, s):
             continue
         sc, matched = matcher.score(job, s, cv_tokens)
         if sc < s.get("min_score", 0):
             continue
+        rank, region = matcher.match_region(job, s) or (None, None)
         kept += 1
-        new += tracker.upsert(job, sc, matched)
+        new += tracker.upsert(job, sc, matched, region, rank)
+        per_region[region] = per_region.get(region, 0) + 1
+    if s.get("regions"):
+        tracker.prune_unplaced()
     print(f"\n{len(jobs)} fetched -> {kept} match your filters -> {new} new")
-    print("\nTop unapplied matches:")
+    for name in s.get("regions") or []:
+        label = links.region(name)["label"]
+        print(f"  {label:<15} {per_region.get(label, 0)}")
+    print("\nTop unapplied matches (region priority, then score):")
     rows = tracker.list("new", s.get("min_score", 0), args.limit)
     print_rows(rows)
-    out = write_report(cfg["_root"] / "data" / "digest.html", tracker.list(None, s.get("min_score", 0), 300), s)
+    out = write_report(cfg["_root"] / "data" / "digest.html", tracker.list(None, s.get("min_score", 0), 500), cfg)
     print(f"\nDigest: {out}")
     if not args.no_open:
         webbrowser.open(out.as_uri())
@@ -80,17 +87,19 @@ def cmd_search(cfg, tracker, args):
 
 def cmd_links(cfg, tracker, args):
     s = cfg["search"]
-    for kw in args.keywords or s.get("keywords") or []:
-        print(f"\n{kw}")
-        for name, url in board_links(kw, s.get("remote_only", True), s.get("max_age_days", 7),
-                                     s.get("location", "")).items():
-            print(f"  {name:<20} {url}")
-            if args.open and name in ("LinkedIn", "Indeed", "Google (ATS boards)"):
-                webbrowser.open(url)
+    regions = [args.region] if args.region else s.get("regions") or ["Remote"]
+    for reg in regions:
+        print(f"\n=== {links.region(reg)['label']}")
+        for kw in args.keywords or s.get("keywords") or []:
+            print(f"  {kw}")
+            for name, url in links.board_links(kw, reg, s.get("max_age_days", 7)).items():
+                print(f"    {name:<20} {url}")
+                if args.open and name in ("LinkedIn", "Indeed", "Google Jobs"):
+                    webbrowser.open(url)
 
 
 def cmd_list(cfg, tracker, args):
-    print_rows(tracker.list(args.status, args.min_score, args.limit))
+    print_rows(tracker.list(args.status, args.min_score, args.limit, args.region))
 
 
 def cmd_open(cfg, tracker, args):
@@ -108,7 +117,8 @@ def cmd_apply(cfg, tracker, args):
     if args.ids:
         rows = [tracker.get(i) for i in args.ids]
     else:
-        rows = (tracker.list("saved", 0, args.top) + tracker.list("new", 0, args.top))[: args.top]
+        rows = (tracker.list("saved", 0, args.top, args.region)
+                + tracker.list("new", 0, args.top, args.region))[: args.top]
     if not rows:
         raise SystemExit("Nothing to apply to. Run `python -m hunter search` first.")
     resume = file_from(cfg, cfg["profile"].get("resume"))
@@ -143,11 +153,13 @@ def main():
 
     p = sub.add_parser("links", help="print LinkedIn/Indeed/Google search URLs")
     p.add_argument("keywords", nargs="*")
-    p.add_argument("--open", action="store_true", help="open LinkedIn, Indeed and Google in your browser")
+    p.add_argument("--region", help="only this region, e.g. Australia (default: all regions in config)")
+    p.add_argument("--open", action="store_true", help="open LinkedIn, Indeed and Google Jobs in your browser")
     p.set_defaults(fn=cmd_links)
 
     p = sub.add_parser("list", help="list tracked jobs")
     p.add_argument("--status", choices=STATUSES, default="new")
+    p.add_argument("--region", help="e.g. Remote, Australia, Singapore")
     p.add_argument("--min-score", type=int, default=0)
     p.add_argument("--limit", type=int, default=50)
     p.set_defaults(fn=cmd_list)
@@ -165,6 +177,7 @@ def main():
     p = sub.add_parser("apply", help="guided applying with autofill (you submit)")
     p.add_argument("ids", nargs="*")
     p.add_argument("--top", type=int, default=10)
+    p.add_argument("--region", help="only jobs in this region")
     p.set_defaults(fn=cmd_apply)
 
     p = sub.add_parser("update-cv", help="attach your latest CV on each career site")

@@ -1,13 +1,13 @@
 # job-hunter
 
-Takes the repetitive parts out of a remote job search:
+Takes the repetitive parts out of a job search across **Remote, Australia, New Zealand, South Korea, Dubai, Singapore and Nepal**, in that priority order (set `search.regions` in config.yaml).
 
 | Step | What it does |
 |---|---|
-| **search** | Pulls fresh remote jobs from public APIs (Remotive, Jobicy, RemoteOK, Arbeitnow, Himalayas, We Work Remotely, plus any Greenhouse/Lever company boards you list, and optionally Google Programmable Search). Filters them by your rules, scores them 0–100 against your skills and CV, and saves them in a local tracker. It also writes an HTML digest. |
-| **links** | Builds LinkedIn, Indeed, Google Jobs, Google "ATS boards", Wellfound and Glassdoor search URLs for your keywords (remote-only, recent postings). |
+| **search** | Pulls jobs from public APIs (Remotive, Jobicy and its per-country filter, RemoteOK, Arbeitnow, Himalayas, We Work Remotely, plus the Greenhouse/Lever company boards you list, such as Coupang, Careem and Ninja Van, and optionally Google Programmable Search). Keeps only jobs in your regions ("Remote" means open worldwide/APAC/Asia, not US-only), filters them by your rules, scores them 0–100 against your skills and CV, and saves them in a local tracker. It also writes an HTML digest with a **Your CV** section (CV status plus every career site) and one section per region. |
+| **links** | Builds search URLs per region: LinkedIn, Indeed (au/nz/kr/ae/sg), Google Jobs, Google "ATS boards" and Glassdoor, plus local boards: Seek (AU/NZ), JobKorea, Wanted, Bayt, MyCareersFuture, JobStreet, Merojob and Kumarijob. |
 | **apply** | Opens your top matches one by one in a real browser, autofills name, email, phone, LinkedIn, GitHub and similar fields, and attaches your CV. **You review and click Submit.** |
-| **update-cv** | Opens each career site's resume page (LinkedIn, Indeed, Wellfound, Naukri…) and attaches your newest CV. You check it and click Save. |
+| **update-cv** | Opens each career site's resume page (LinkedIn, Indeed, Glassdoor, Seek, Bayt, JobStreet, Wanted, Merojob…) and attaches your newest CV. You check it and click Save. |
 | **list / mark / stats / export** | Tracks every job as new, saved, applied, interview, offer, rejected or skipped, so you never apply twice. |
 
 ### Why it doesn't auto-submit or scrape LinkedIn/Indeed
@@ -29,10 +29,14 @@ Edit `config.yaml` with your profile, keywords, skills and the path to your CV.
 
 ## Daily use
 
+Run these with the project's Python: activate `.venv` first, or replace `python` with `.\.venv\Scripts\python.exe`.
+
 ```powershell
 python -m hunter search                 # fetch + score, opens data\digest.html
-python -m hunter links --open           # LinkedIn / Indeed / Google searches in your browser
-python -m hunter apply --top 10         # guided applying, top 10 new/saved jobs
+python -m hunter links --region Australia --open   # LinkedIn / Indeed / Google Jobs for one region
+python -m hunter list --region "South Korea"     # tracked jobs in one region
+python -m hunter apply --top 10         # guided applying, top 10 by region priority then score
+python -m hunter apply --region Singapore --top 5
 python -m hunter apply 3fa9c1d2         # a specific job (id from list/digest)
 python -m hunter mark 3fa9c1d2 interview --note "HR call Tue"
 python -m hunter list --status applied
@@ -52,7 +56,7 @@ schtasks /Create /SC DAILY /ST 08:00 /TN "JobHunter" /TR "cmd /c cd /d D:\path\t
 ```
 
 ## Tips
-- Add companies you like to `greenhouse_boards` or `lever_companies`. The slug is the part after `boards.greenhouse.io/` or `jobs.lever.co/`.
+- The job APIs are mostly remote boards. For Dubai, New Zealand and Nepal, use the search links in the digest, and add companies hiring there to `greenhouse_boards` or `lever_companies`. The slug is the part after `boards.greenhouse.io/` or `jobs.lever.co/`.
 - If some keyword returns no jobs, add synonyms (for example `sysadmin`, `M365 administrator`, `site reliability`).
 - `exclude` drops postings restricted to US citizens or that require clearance, so you don't waste applications.
 - Raise `min_score` once the tracker fills up.
