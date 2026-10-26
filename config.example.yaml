@@ -29,6 +29,7 @@ search:
     - security engineer
     - security analyst
     - IT support
+    - technical support
     - IT manager
   skills:                      # each skill found in a posting adds to its score
     [Microsoft 365, Exchange Online, Azure, Entra ID, Intune, PowerShell, Python,
@@ -67,6 +68,14 @@ search:
 browser:
   channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
 
+company_careers:               # employers you want to watch; shown under their region in the digest
+  Dubai:
+    - name: du
+      url: https://www.du.ae/about-us/careers
+  # Australia:
+  #   - name: Some Company
+  #     url: https://example.com/careers
+
 career_sites:                  # opened by `python -m hunter update-cv` and listed in the digest
   - name: LinkedIn (Easy Apply resumes)
     url: https://www.linkedin.com/jobs/application-settings/
@@ -82,6 +91,10 @@ career_sites:                  # opened by `python -m hunter update-cv` and list
     url: https://au.seek.com/profile/me
   - name: Bayt (Dubai / UAE)
     url: https://www.bayt.com/en/myworkspace/
+  - name: Naukrigulf (Dubai / UAE)
+    url: https://www.naukrigulf.com/
+  - name: GulfTalent (Dubai / UAE)
+    url: https://www.gulftalent.com/
   - name: JobStreet (Singapore)
     url: https://sg.jobstreet.com/profile
   - name: Wanted (South Korea)

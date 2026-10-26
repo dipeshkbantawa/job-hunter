@@ -37,7 +37,10 @@ REGIONS = {
     "dubai": {
         "label": "Dubai / UAE", "linkedin": "Dubai, United Arab Emirates", "indeed": "ae.indeed.com",
         "match": ["dubai", "uae", "united arab emirates", "abu dhabi", "sharjah"],
-        "local": {"Bayt": "https://www.bayt.com/en/uae/jobs/{slug}-jobs-in-dubai/"},
+        "local": {"Bayt": "https://www.bayt.com/en/uae/jobs/{slug}-jobs-in-dubai/",
+                  "Naukrigulf": "https://www.naukrigulf.com/{slug}-jobs-in-dubai",
+                  # GulfTalent has no keyword URL (its search is a POST form), so go through Google
+                  "GulfTalent": "https://www.google.com/search?q=site%3Agulftalent.com+%22{q}%22+UAE"},
     },
     "singapore": {
         "label": "Singapore", "linkedin": "Singapore", "indeed": "sg.indeed.com", "jobicy": "singapore",
@@ -62,6 +65,13 @@ def region(name: str) -> dict:
     key = ALIASES.get(name.strip().lower(), name.strip().lower())
     return REGIONS.get(key) or {"label": name, "linkedin": name, "indeed": "www.indeed.com",
                                 "match": [key], "local": {}}
+
+
+def company_pages(cfg: dict, name: str) -> list:
+    """Company career pages from config.yaml `company_careers`, keyed by region name or label."""
+    pages = cfg.get("company_careers") or {}
+    wanted = {name.strip().lower(), region(name)["label"].lower()}
+    return [p for key, items in pages.items() if key.strip().lower() in wanted for p in items or []]
 
 
 def matches(job, name: str) -> bool:

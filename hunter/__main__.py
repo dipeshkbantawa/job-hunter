@@ -96,6 +96,8 @@ def cmd_links(cfg, tracker, args):
                 print(f"    {name:<20} {url}")
                 if args.open and name in ("LinkedIn", "Indeed", "Google Jobs"):
                     webbrowser.open(url)
+        for c in links.company_pages(cfg, reg):
+            print(f"  {'company: ' + c['name']:<22} {c['url']}")
 
 
 def cmd_list(cfg, tracker, args):

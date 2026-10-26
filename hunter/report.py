@@ -4,7 +4,7 @@ import html
 from datetime import datetime
 from pathlib import Path
 
-from .links import board_links, region
+from .links import board_links, company_pages, region
 
 CSS = """body{font:14px system-ui,sans-serif;margin:24px;background:#f7f7f8;color:#1f2328}
 h1{font-size:20px}h2{font-size:17px;margin:32px 0 8px}table{border-collapse:collapse;width:100%;background:#fff}
@@ -70,6 +70,10 @@ def write_report(path, rows, cfg):
             out.append(f"<div class=links><b>{e(kw)}:</b> " + "".join(
                 f'<a href="{e(u)}" target=_blank>{e(n)}</a>' for n, u in links.items()) + "</div>")
         out.append("</details>")
+        companies = company_pages(cfg, name)
+        if companies:
+            out.append("<div class=links><b>Company career pages:</b> " + "".join(
+                f'<a href="{e(c["url"])}" target=_blank>{e(c["name"])}</a>' for c in companies) + "</div>")
         out.append(_jobs_table(by_region[label], e))
     path.write_text("\n".join(out), encoding="utf-8")
     return path
