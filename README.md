@@ -32,6 +32,7 @@ search / inbox / add  ->  live check  ->  evaluate (1-5)  ->  tailor CV + cover 
 | **followups** | Reminds you when to follow up: 7 days after applying (twice, then "cold"), 1 then every 3 days once they've responded or set an assessment, and a thank-you the day after an interview. |
 | **stats** | Shows the funnel (evaluated, applied, responded, interview, offer) with response rates, plus applications by region and source. |
 | **digest** | `data/digest.html`: your CV and its ATS score, your pipeline, visa jobs, and one section per region with LinkedIn, Indeed, Seek, Bayt, Naukrigulf, GulfTalent and other search links. |
+| **dashboard** | Live tracker at `http://127.0.0.1:8765`, modelled on career-ops' dashboard: funnel numbers, tabs (Pipeline, New matches, Follow-ups due, Closed, All), search, region and visa filters, sorting, and a side panel with the evaluation report, job ad, CV and cover letter PDFs, the next step, and a status changer (same as `hunter mark`). Keys: `/` search, `j`/`k` move, `o` open posting, `r` reload. Local only; stop it with Ctrl+C. |
 | **cv-check / update-cv** | `cv-check` gives the ATS score and keyword gaps against your jobs. `update-cv` attaches the newest CV on each career site; you click Save. |
 
 ### What it will not do
@@ -82,6 +83,7 @@ python -m hunter cv build                # rebuild your master CV PDF
 python -m hunter cv-check --job 62f55eab # ATS + keyword match for one job
 python -m hunter update-cv               # attach the new CV on each career site
 python -m hunter digest                  # rebuild the HTML page without fetching
+python -m hunter dashboard               # live dashboard in your browser (Ctrl+C to stop)
 ```
 
 During `apply`, at each job:

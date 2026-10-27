@@ -11,6 +11,7 @@
     python -m hunter live              # are the postings still open?
     python -m hunter cv build          # ATS-safe PDF from cv.yaml
     python -m hunter followups         # who to nudge today
+    python -m hunter dashboard         # live tracker dashboard in your browser
 Evaluation, tailored CVs, cover letters and messages: open Claude Code here and use /job-hunter.
 """
 import argparse
@@ -138,6 +139,11 @@ def cmd_digest(cfg, tracker, args):
     print(f"\nDigest: {out}")
     if not getattr(args, "no_open", False):
         webbrowser.open(out.as_uri())
+
+
+def cmd_dashboard(cfg, tracker, args):
+    from .dashboard import serve
+    serve(cfg, tracker, args.port, not args.no_open)
 
 
 def cmd_links(cfg, tracker, args):
@@ -533,6 +539,11 @@ def main():
     p = sub.add_parser("digest", help="rebuild data/digest.html from the tracker (no fetching)")
     p.add_argument("--no-open", action="store_true")
     p.set_defaults(fn=cmd_digest)
+
+    p = sub.add_parser("dashboard", help="live tracker dashboard on http://127.0.0.1 (status tabs, reports, status changes)")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--no-open", action="store_true")
+    p.set_defaults(fn=cmd_dashboard)
 
     sub.add_parser("stats", help="counts per status + funnel").set_defaults(fn=cmd_stats)
 
