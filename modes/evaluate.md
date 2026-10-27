@@ -28,6 +28,14 @@ Decide whether one job is worth applying to, and write the evidence down.
 **Date:** YYYY-MM-DD   **Rating:** X.X/5   **Region:** ...   **Visa:** ...   **URL:** ...
 **Verdict:** Apply now / Apply / Only with a reason / Skip, plus one sentence why.
 
+## Match summary
+**Match:** NN% = must-have requirements met (strong = 1, partial = 0.5) / must-haves in the JD, from table B.
+**ATS keywords:** the % from `hunter cv-check --job <id>` (the dashboard's ATS column).
+**Strengths:** 3 bullets, each tied to a JD requirement and a cv.yaml fact.
+**Weaknesses:** 3 bullets: the riskiest gaps, said plainly.
+**Improvement tips:** 3-5 concrete actions: CV rewording from section E, missing keywords that are true for the
+candidate (ask; they go into cv.yaml first), and skills worth learning. Never suggest claiming what isn't true.
+
 ## A) Role summary
 Table: seniority, function, team/product, location and work model, visa or relocation signal, salary if stated, TL;DR.
 

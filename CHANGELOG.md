@@ -10,6 +10,11 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
   flag Korean-fluency requirements and Korean-only ads, in the dashboard and digest; `evaluate` treats Korean
   fluency or nationals-only as a hard blocker and makes "confirm E-7 sponsorship" the first step when the ad is silent.
 - `hunter retag`: re-check stored ads for visa and foreign-worker signals after detection rules change.
+- Overleaf flow: `hunter cv tex` writes an ATS-safe LaTeX CV (glyph-to-unicode, real inter-word spaces, no
+  hyphenation or ligatures, no icons, PDF title); the dashboard's "CV in Overleaf" buttons open the master or
+  tailored CV as a new Overleaf project (free plan); `hunter cv import <pdf> --job <id>` re-runs the ATS and fact
+  checks on the PDF downloaded from Overleaf and links it for `apply`.
+- Evaluation reports start with a match summary: match %, ATS keyword %, strengths, weaknesses, improvement tips.
 
 ## [0.5.0] - 2026-10-27
 ### Added

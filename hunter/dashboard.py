@@ -5,13 +5,15 @@ standard library on 127.0.0.1 only. Status changes go through Tracker.set_status
 """
 import json
 import mimetypes
+import re
 import secrets
 import webbrowser
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import __version__, atscheck
+from . import __version__, atscheck, cvbuild
+from .cvtex import render_tex
 from .links import region
 from .matcher import korean_required
 from .tracker import ACTIVE, STATUSES
@@ -86,6 +88,8 @@ def _data(cfg, tracker):
         j["docs"] = [k for k, p in paths.items() if p]
         j["due"] = due.get(r["id"], "")
         j["korean"] = korean_required(r["description"])
+        folder = _folder(root, r)
+        j["tailored"] = bool(folder and (folder / "cv.yaml").is_file())
         cv, kind = (paths["cv"], "tailored") if paths["cv"] else (master, "master")
         j["ats"] = _ats(cv, kind, r["description"], skills) if cv else None
         jobs.append(j)
@@ -133,6 +137,15 @@ def make_handler(cfg, tracker, token):
                                   "text/html; charset=utf-8")
             if url.path == "/api/data":
                 return self._send(200, _data(cfg, tracker))
+            if url.path == "/api/tex":  # LaTeX of the tailored CV for a job, or of the master CV
+                row = self._row(q) if q.get("id") else None
+                folder = row and _folder(root, row)
+                src = folder / "cv.yaml" if folder and (folder / "cv.yaml").is_file() else root / "cv.yaml"
+                d = cvbuild.load(src)
+                role = (d.get("headline") or "CV").split("|")[0].strip()
+                name = re.sub(r"\W+", "_", f"{d['name']} {role} CV").strip("_") + ".tex"
+                return self._send(200, {"name": name, "tailored": src.parent != root,
+                                        "tex": render_tex(d, str(src.relative_to(root)))})
             if url.path in ("/api/doc", "/api/file"):
                 row = self._row(q)
                 kind = (q.get("kind") or [""])[0]

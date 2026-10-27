@@ -21,6 +21,7 @@
 .venv\Scripts\python.exe -m hunter cv build --data applications/<id>-<slug>/cv.yaml --job <id>
 .venv\Scripts\python.exe -m hunter cv-check --file <the PDF it printed> --job <id>
 ```
-Target: format score 100 and keyword match as high as the truth allows. Report the remaining missing
+Target: format score 100 and keyword match as high as the truth allows. For Overleaf, also run
+`hunter cv tex --data applications/<id>-<slug>/cv.yaml --job <id>` (see `modes/pipeline.md` step 3b). Report the remaining missing
 keywords to the user and ask whether any are true for them (if yes, they go into the master `cv.yaml` first,
 via `modes/cv-update.md`).

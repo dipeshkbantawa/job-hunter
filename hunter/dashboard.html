@@ -100,6 +100,7 @@ kbd{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
   <span class="muted" id="stamp"></span>
   <span class="sp"></span>
   <span class="muted hide-sm"><kbd>/</kbd> search <kbd>j</kbd><kbd>k</kbd> move <kbd>o</kbd> open <kbd>r</kbd> reload</span>
+  <button id="masterOverleaf" title="Open your master CV as a new Overleaf project">Master CV in Overleaf</button>
   <button id="reload" title="Reload from the tracker (r)">Reload</button>
 </header>
 <div class="wrap">
@@ -181,6 +182,18 @@ const el = (tag, attrs = {}, ...kids) => {
 const esc = s => String(s).replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const pct = (a, b) => b ? Math.round(100 * a / b) + "% of applied" : "";
 
+// Overleaf's free "Open in Overleaf" API: POST the .tex and it creates a new project in your account.
+async function openOverleaf(id) {
+  const r = await fetch("/api/tex" + (id ? "?id=" + encodeURIComponent(id) : ""));
+  if (!r.ok) return toast("Could not build the LaTeX: " + r.status);
+  const t = await r.json();
+  const form = el("form", {method: "post", action: "https://www.overleaf.com/docs", target: "_blank"},
+    el("input", {type: "hidden", name: "encoded_snip", value: encodeURIComponent(t.tex)}),
+    el("input", {type: "hidden", name: "snip_name", value: t.name}),
+    el("input", {type: "hidden", name: "engine", value: "pdflatex"}));
+  document.body.append(form); form.submit(); form.remove();
+  toast("Opening " + (t.tailored ? "the tailored" : "your master") + " CV in Overleaf");
+}
 function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2200); }
 
 function statusChip(s) {
@@ -397,7 +410,9 @@ function renderDetail() {
       ...visaChips(j),
       j.live ? el("span", {class: "chip " + (j.live === "live" ? "good" : j.live === "closed" ? "bad" : "")}, "posting " + j.live) : null),
     el("div", {class: "row"}, el("a", {href: j.url, target: "_blank", rel: "noopener noreferrer"}, "Open posting ↗"),
-      fileLink("cv", "CV PDF"), fileLink("cover", "Cover letter PDF")),
+      fileLink("cv", "CV PDF"), fileLink("cover", "Cover letter PDF"),
+      el("button", {title: j.tailored ? "Open the tailored CV for this job in Overleaf" : "No tailored CV yet: opens your master CV",
+        onclick: () => openOverleaf(j.id)}, j.tailored ? "Tailored CV in Overleaf" : "CV in Overleaf")),
     nextStep(j) ? el("div", {class: "next"}, nextStep(j)) : null,
     el("dl", {class: "meta"},
       el("dt", {}, "ID"), el("dd", {}, el("code", {}, id8)),
@@ -466,6 +481,7 @@ $("gapcsv").onclick = () => {
     download: "skill-gaps-" + new Date().toISOString().slice(0, 10) + ".csv"});
   a.click(); URL.revokeObjectURL(a.href);
 };
+$("masterOverleaf").onclick = () => openOverleaf("");
 $("reload").onclick = () => load().then(() => toast("Reloaded"));
 document.addEventListener("keydown", e => {
   if (e.target.matches("input,select,textarea")) { if (e.key === "Escape") e.target.blur(); return; }

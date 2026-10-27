@@ -85,6 +85,8 @@ python -m hunter update-cv               # attach the new CV on each career site
 python -m hunter digest                  # rebuild the HTML page without fetching
 python -m hunter dashboard               # live dashboard in your browser (Ctrl+C to stop)
 python -m hunter retag                   # re-check stored ads for visa / foreign-worker signals
+python -m hunter cv tex [--data applications/<id>/cv.yaml]   # ATS-safe LaTeX for Overleaf
+python -m hunter cv import <overleaf.pdf> --job <id>          # check + link the PDF you edited in Overleaf
 ```
 
 During `apply`, at each job:

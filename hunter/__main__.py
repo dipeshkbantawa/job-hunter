@@ -372,6 +372,8 @@ def cmd_cv(cfg, tracker, args):
     data_path = Path(args.data) if args.data else master_path
     if not data_path.is_absolute():
         data_path = cfg["_root"] / data_path
+    if args.action == "import":
+        return _cv_import(cfg, tracker, args, master_path)
     data = cvbuild.load(data_path)
     if data_path.resolve() != master_path.resolve():
         problems = cvbuild.fact_check(data, cvbuild.load(master_path))
@@ -385,6 +387,15 @@ def cmd_cv(cfg, tracker, args):
     role = re.sub(r"\W+", "_", (data.get("headline") or "CV").split("|")[0].strip()).strip("_")
     out = Path(args.out) if args.out else (data_path.parent / f"{name}_{role}_CV.pdf" if data_path != master_path
                                            else cfg["_root"] / "output" / f"{name}_{role}_CV.pdf")
+    if args.action == "tex":
+        from .cvtex import render_tex
+        tex = out.with_suffix(".tex")
+        tex.parent.mkdir(parents=True, exist_ok=True)
+        tex.write_text(render_tex(data, data_path.name), encoding="utf-8")
+        print(f"LaTeX: {tex}\n  Open it in Overleaf from the dashboard (Open in Overleaf), compile with pdfLaTeX,"
+              " download the PDF, then:\n  python -m hunter cv import <downloaded.pdf>"
+              + (f" --job {args.job}" if args.job else ""))
+        return
     cvbuild.to_pdf(cvbuild.render_cv(data), out, channel(cfg))
     res = atscheck.check(out)
     print(f"PDF: {out}\nATS format score: {res.score}/100, {res.pages} page(s)")
@@ -395,6 +406,51 @@ def cmd_cv(cfg, tracker, args):
         row = tracker.get(args.job)
         tracker.record(row["id"], cv_pdf=str(out))
         print(f"Linked to {row['id'][:8]} {row['title']} @ {row['company']}")
+
+
+def _cv_import(cfg, tracker, args, master_path):
+    """Bring back a CV PDF edited elsewhere (Overleaf): ATS check, fact check against the master CV, link to the job."""
+    import shutil
+    from . import atscheck, cvbuild
+    if not args.file:
+        raise SystemExit("Pass the PDF: python -m hunter cv import <file.pdf> --job <id>")
+    src = Path(args.file).expanduser()
+    if not src.is_file():
+        raise SystemExit(f"Not found: {src}")
+    res = atscheck.check(src)
+    print(f"ATS format score: {res.score}/100, {res.pages} page(s)")
+    for level, title, detail in res.checks:
+        if level != "OK":
+            print(f"  [{level}] {title}: {detail}")
+    master = cvbuild.flatten(cvbuild.load(master_path))
+    extra = sorted(n for n in cvbuild._numbers(res.text) - cvbuild._numbers(master)
+                   if not re.fullmatch(r"20\d\d|\d{1,2}", n))
+    if extra and not args.skip_fact_check:
+        print("Fact check FAILED - numbers in this PDF that your master CV doesn't have: " + ", ".join(extra[:15]))
+        raise SystemExit("Fix the wording in Overleaf, or add the fact to cv.yaml first if it is true.")
+    print("Fact check passed: no numbers beyond your master CV.")
+    if not args.job:
+        return
+    row = tracker.get(args.job)
+    if row["description"]:
+        gap = atscheck.keyword_gap(res.text, [row["description"]], cfg["search"].get("skills") or [])
+        have = [t for t, _, ok in gap if ok]
+        miss = [t for t, _, ok in gap if not ok]
+        if gap:
+            print(f"Keywords from this ad: {round(100 * len(have) / len(gap))}% ({len(have)} of {len(gap)})"
+                  + (f"; missing: {', '.join(miss)}" if miss else ""))
+    folder = next((p for p in (cfg["_root"] / "applications").glob(f"{row['id'][:8]}-*") if p.is_dir()), None)
+    if folder is None:
+        folder = cfg["_root"] / "applications" / row["id"][:8]
+        folder.mkdir(parents=True, exist_ok=True)
+    name = re.sub(r"\W+", "_", cvbuild.load(master_path)["name"]).strip("_")
+    dest = folder / f"{name}_CV.pdf"
+    if src.resolve() != dest.resolve():
+        shutil.copyfile(src, dest)
+    tracker.record(row["id"], cv_pdf=str(dest))
+    print(f"Linked {dest.name} to {row['id'][:8]} {row['title']} @ {row['company']}: `hunter apply {row['id'][:8]}` uses it.")
+    if res.score < 80:
+        print("  ! ATS format score is below 80: fix the issues above before applying.")
 
 
 def cmd_cover(cfg, tracker, args):
@@ -535,8 +591,10 @@ def main():
     p.add_argument("--cover")
     p.set_defaults(fn=cmd_record)
 
-    p = sub.add_parser("cv", help="build an ATS-safe CV PDF from cv.yaml (or a tailored copy)")
-    p.add_argument("action", choices=["build"])
+    p = sub.add_parser("cv", help="build an ATS-safe CV PDF or Overleaf .tex from cv.yaml; import an edited PDF")
+    p.add_argument("action", choices=["build", "tex", "import"],
+                   help="build: PDF | tex: LaTeX for Overleaf | import: check + link a PDF downloaded from Overleaf")
+    p.add_argument("file", nargs="?", help="import: the PDF to bring back")
     p.add_argument("--data", help="tailored cv.yaml (default: master cv.yaml)")
     p.add_argument("--out")
     p.add_argument("--job", help="link the PDF to this job id")
