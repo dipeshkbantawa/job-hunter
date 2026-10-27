@@ -109,11 +109,18 @@ def apply_queue(cfg, rows, tracker, resume: Path, cover: Path = None):
                 page.goto(row["url"], wait_until="domcontentloaded", timeout=60000)
             except Exception as e:
                 print(f"    ! could not open: {e}")
+            # a CV / cover letter tailored for this job wins over the default files
+            keys = row.keys()
+            job_cv = Path(row["cv_pdf"]) if "cv_pdf" in keys and row["cv_pdf"] else None
+            job_cover = Path(row["cover_pdf"]) if "cover_pdf" in keys and row["cover_pdf"] else None
+            use_cv = job_cv if job_cv and job_cv.exists() else resume
+            use_cover = job_cover if job_cover and job_cover.exists() else cover
+            print(f"    CV: {use_cv.name if use_cv else '-'}" + (f"   cover letter: {use_cover.name}" if use_cover else ""))
             print("    Click 'Apply' / log in if needed, then use the prompt below. I never submit for you.")
             while True:
                 choice = input("    [Enter]=autofill  a=mark applied  s=skip  l=later  q=quit > ").strip().lower()
                 if choice == "":
-                    n = autofill(_active_page(ctx), profile, resume, cover)
+                    n = autofill(_active_page(ctx), profile, use_cv, use_cover)
                     print(f"    filled {n} field(s). Review every answer, complete the rest, then SUBMIT yourself.")
                 elif choice == "a":
                     tracker.set_status(row["id"], "applied")

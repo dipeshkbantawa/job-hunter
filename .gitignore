@@ -1,6 +1,13 @@
+# personal data: never committed
 config.yaml
+cv.yaml
+profile.md
+story-bank.md
 cv/
 data/
+output/
+applications/
+applications.csv
+
 .venv/
 __pycache__/
-applications.csv

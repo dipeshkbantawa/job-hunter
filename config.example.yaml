@@ -14,7 +14,7 @@ profile:                      # used to autofill application forms
   years_experience: 5
   notice_period: 30 days
   salary_expectation: ""
-  resume: cv/My_CV.pdf         # PDF, DOCX or TXT - also used to score jobs
+  resume: output/Firstname_Lastname_Target_Role_CV.pdf   # built by `cv build` from cv.yaml (or your own PDF/DOCX)
   cover_letter: ""             # optional file attached to "cover letter" upload fields
 
 search:
@@ -68,6 +68,10 @@ search:
 
 browser:
   channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
+
+blacklist:                     # companies you won't apply to (skipped by search, refused by add)
+  # - company: Example Corp
+  #   reason: bad interview experience
 
 company_careers:               # employers you want to watch; shown under their region in the digest
   Dubai:

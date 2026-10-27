@@ -4,7 +4,12 @@ import sqlite3
 from datetime import datetime
 from pathlib import Path
 
-STATUSES = ("new", "saved", "applied", "interview", "offer", "rejected", "skipped")
+# Pipeline stages (same lifecycle as career-ops): found -> evaluated -> applied -> responses -> outcome
+STATUSES = ("new", "saved", "evaluated", "applied", "responded", "assessment", "interview",
+            "offer", "hired", "rejected", "discarded", "skipped")
+ACTIVE = ("applied", "responded", "assessment", "interview", "offer")
+# Follow-up cadence: (days before first nudge, days between nudges, max nudges or None)
+CADENCE = {"applied": (7, 7, 2), "responded": (1, 3, None), "assessment": (1, 3, None), "interview": (1, 3, None)}
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS jobs (
@@ -23,7 +28,10 @@ class Tracker:
         self.db.row_factory = sqlite3.Row
         self.db.execute(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(jobs)")}
-        for col, typ in (("region", "TEXT"), ("region_rank", "INTEGER"), ("description", "TEXT"), ("visa", "TEXT")):
+        for col, typ in (("region", "TEXT"), ("region_rank", "INTEGER"), ("description", "TEXT"), ("visa", "TEXT"),
+                         ("rating", "REAL"), ("report", "TEXT"), ("cv_pdf", "TEXT"), ("cover_pdf", "TEXT"),
+                         ("status_at", "TEXT"), ("followups", "INTEGER DEFAULT 0"), ("last_contact", "TEXT"),
+                         ("live", "TEXT"), ("checked_at", "TEXT")):
             if col not in cols:  # databases created by older versions
                 self.db.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typ}")
 
@@ -76,15 +84,92 @@ class Tracker:
     def set_status(self, job_id: str, status: str, note: str = ""):
         if status not in STATUSES:
             raise SystemExit(f"Status must be one of: {', '.join(STATUSES)}")
-        applied = datetime.now().isoformat(timespec="seconds") if status == "applied" else None
+        now = datetime.now().isoformat(timespec="seconds")
+        applied = now if status == "applied" else None
         self.db.execute(
-            "UPDATE jobs SET status=?, applied_at=COALESCE(?, applied_at),"
+            "UPDATE jobs SET status=?, status_at=?, applied_at=COALESCE(?, applied_at),"
+            " last_contact=CASE WHEN ? IN ('applied','responded','assessment','interview','offer') THEN ?"
+            " ELSE last_contact END,"
+            " followups=CASE WHEN status<>? THEN 0 ELSE followups END,"
             " notes=CASE WHEN ?='' THEN notes ELSE TRIM(notes || ' | ' || ?, ' |') END WHERE id=?",
-            (status, applied, note, note, job_id))
+            (status, now, applied, status, now, status, note, note, job_id))
         self.db.commit()
+
+    def add_note(self, job_id: str, note: str):
+        self.db.execute("UPDATE jobs SET notes=TRIM(notes || ' | ' || ?, ' |') WHERE id=?", (note, job_id))
+        self.db.commit()
+
+    def record(self, job_id: str, rating=None, report=None, cv_pdf=None, cover_pdf=None):
+        """Store an evaluation (1-5 rating + report) and generated documents; new/saved jobs become 'evaluated'."""
+        self.db.execute(
+            "UPDATE jobs SET rating=COALESCE(?, rating), report=COALESCE(?, report), cv_pdf=COALESCE(?, cv_pdf),"
+            " cover_pdf=COALESCE(?, cover_pdf),"
+            " status=CASE WHEN status IN ('new','saved') THEN 'evaluated' ELSE status END,"
+            " status_at=CASE WHEN status IN ('new','saved') THEN ? ELSE status_at END WHERE id=?",
+            (rating, report, cv_pdf, cover_pdf, datetime.now().isoformat(timespec="seconds"), job_id))
+        self.db.commit()
+
+    def set_live(self, job_id: str, live: str, reason: str = ""):
+        self.db.execute("UPDATE jobs SET live=?, checked_at=? WHERE id=?",
+                        (live, datetime.now().isoformat(timespec="seconds"), job_id))
+        if live == "closed":
+            self.db.execute("UPDATE jobs SET status='discarded', status_at=?, notes=TRIM(notes || ' | posting closed: '"
+                            " || ?, ' |') WHERE id=? AND status IN ('new','saved','evaluated')",
+                            (datetime.now().isoformat(timespec="seconds"), reason, job_id))
+        self.db.commit()
+
+    def followed_up(self, job_id: str):
+        self.db.execute("UPDATE jobs SET followups=COALESCE(followups,0)+1, last_contact=? WHERE id=?",
+                        (datetime.now().isoformat(timespec="seconds"), job_id))
+        self.db.commit()
+
+    def due_followups(self, today=None):
+        """Applications whose next nudge is due, per CADENCE. Returns (row, days_since_contact, kind)."""
+        today = today or datetime.now()
+        due = []
+        for r in self.db.execute(f"SELECT * FROM jobs WHERE status IN ({','.join('?' * len(CADENCE))})",
+                                 tuple(CADENCE)).fetchall():
+            first, every, cap = CADENCE[r["status"]]
+            n = r["followups"] or 0
+            since = r["last_contact"] or r["status_at"] or r["applied_at"]
+            if not since:
+                continue
+            days = (today - datetime.fromisoformat(since)).days
+            if cap is not None and n >= cap:
+                if r["status"] == "applied" and days >= every:
+                    due.append((r, days, "cold: no reply after 2 follow-ups - consider marking rejected"))
+                continue
+            if days >= (first if n == 0 else every):
+                kind = {"applied": "follow-up" if n == 0 else "second follow-up",
+                        "interview": "thank-you note" if n == 0 else "check-in",
+                        }.get(r["status"], "reply / check-in")
+                due.append((r, days, kind))
+        return due
 
     def stats(self):
         return self.db.execute("SELECT status, COUNT(*) n FROM jobs GROUP BY status ORDER BY n DESC").fetchall()
+
+    def funnel(self):
+        q = lambda sql, *a: self.db.execute(sql, a).fetchone()[0]
+        reached = lambda states: q(f"SELECT COUNT(*) FROM jobs WHERE status IN ({','.join('?' * len(states))})",
+                                   *states)
+        applied_plus = ("applied", "responded", "assessment", "interview", "offer", "hired", "rejected")
+        return {
+            "tracked": q("SELECT COUNT(*) FROM jobs"),
+            "evaluated": q("SELECT COUNT(*) FROM jobs WHERE rating IS NOT NULL"),
+            "applied": q("SELECT COUNT(*) FROM jobs WHERE applied_at IS NOT NULL"),
+            "responded": reached(("responded", "assessment", "interview", "offer", "hired")),
+            "interview": reached(("interview", "offer", "hired")),
+            "offer": reached(("offer", "hired")),
+            "rejected": reached(("rejected",)),
+            "by_region": self.db.execute(
+                f"SELECT COALESCE(region,'-') region, COUNT(*) n FROM jobs WHERE status IN "
+                f"({','.join('?' * len(applied_plus))}) GROUP BY region ORDER BY n DESC", applied_plus).fetchall(),
+            "by_source": self.db.execute(
+                f"SELECT source, COUNT(*) n FROM jobs WHERE status IN ({','.join('?' * len(applied_plus))})"
+                " GROUP BY source ORDER BY n DESC", applied_plus).fetchall(),
+            "avg_rating_applied": q("SELECT ROUND(AVG(rating),2) FROM jobs WHERE applied_at IS NOT NULL"),
+        }
 
     def export_csv(self, path: Path):
         rows = self.db.execute("SELECT * FROM jobs ORDER BY status, score DESC").fetchall()

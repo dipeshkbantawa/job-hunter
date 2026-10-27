@@ -1,0 +1,46 @@
+# Master CV template: copy to cv.yaml (git-ignored) and fill in. This is the ONLY source of facts
+# for tailored CVs, cover letters and answers. **bold** is allowed. Build: python -m hunter cv build
+name: Firstname Lastname
+headline: Target Role | Key area | Key area
+location: City, Country (time zone)
+email: you@example.com
+phone: "+000 0000000000"
+linkedin: linkedin.com/in/your-handle
+github: github.com/your-handle
+
+summary: >-
+  2-4 lines: who you are, years of experience, the problems you solve, 1-2 numbers.
+
+competencies:
+  - Keyword phrase
+  - Keyword phrase
+
+experience:
+  - title: Job Title
+    company: Company
+    location: City, Country
+    start: Jan 2024
+    end: Present
+    bullets:
+      - Achievement with a **number** and the result it had
+
+projects:
+  - name: Project name
+    tech: Tools used
+    url: github.com/you/project
+    date: "2026"
+    bullets:
+      - What it does and the result
+
+education:
+  - degree: Degree
+    school: School
+    start: Jan 2018
+    end: Dec 2021
+    details: Optional line
+
+certifications:
+  - Certification name — status/year
+
+skills:
+  Category: [Skill, Skill]

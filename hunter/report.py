@@ -97,20 +97,55 @@ def _visa_section(offering, names, search, e, home=""):
     return "".join(out)
 
 
-def write_report(path, rows, cfg):
+def _file_link(p, label, e):
+    if not p:
+        return ""
+    path = Path(p)
+    return f'<a href="{e(path.resolve().as_uri())}">{e(label)}</a>' if path.exists() else ""
+
+
+def _pipeline_section(rows, due, e):
+    stage_order = ["offer", "interview", "assessment", "responded", "applied", "evaluated", "saved"]
+    active = sorted([r for r in rows if r["status"] in stage_order],
+                    key=lambda r: (stage_order.index(r["status"]), -(r["rating"] or 0)))
+    out = ["<h2 id=pipeline>Your pipeline</h2><div class=box>"]
+    if not active:
+        out.append("<p class=empty>Nothing evaluated or applied yet. Open Claude Code in this folder and paste a job "
+                   "link (or type <code>/job-hunter evaluate &lt;id&gt;</code>).</p></div>")
+        return "".join(out)
+    out.append("<table><tr><th>Stage</th><th>Rating</th><th>Job</th><th>Documents</th><th>Next</th></tr>")
+    for r in active:
+        rating = f"{r['rating']:.1f}/5" if r["rating"] is not None else "-"
+        docs = " &middot; ".join(x for x in (_file_link(r["report"], "report", e), _file_link(r["cv_pdf"], "CV", e),
+                                             _file_link(r["cover_pdf"], "cover letter", e)) if x) or "-"
+        nxt = due.get(r["id"]) or {"evaluated": "tailor CV / apply" if (r["rating"] or 0) >= 4 else "skip?",
+                                   "saved": "evaluate"}.get(r["status"], "")
+        out.append(f"<tr><td class=s>{e(r['status'])}</td><td>{rating}</td><td><a href=\"{e(r['url'])}\" "
+                   f"target=_blank>{e(r['title'])}</a> &middot; {e(r['company'])}{_badge(r, e)}"
+                   f"<div class=m>{e(r['region'] or '-')} &middot; <code>{r['id'][:8]}</code></div></td>"
+                   f"<td>{docs}</td><td>{e(nxt)}</td></tr>")
+    out.append("</table></div>")
+    return "".join(out)
+
+
+def write_report(path, rows, cfg, due=None):
     e = html.escape
     search = cfg["search"]
     names = search.get("regions") or ["Remote"]
     labels = [region(n)["label"] for n in names]
-    by_region = {label: [r for r in rows if r["region"] == label] for label in labels}
+    open_rows = [r for r in rows if r["status"] not in ("discarded", "skipped", "rejected")]
+    by_region = {label: [r for r in open_rows if r["region"] == label] for label in labels}
 
-    offering = [r for r in rows if (r["visa"] or "") in ("visa", "relocation", "visa+relocation", "open")]
+    offering = [r for r in open_rows if (r["visa"] or "") in ("visa", "relocation", "visa+relocation", "open")]
+    in_pipe = sum(r["status"] not in ("new", "discarded", "skipped") for r in rows)
     out = [f"<!doctype html><meta charset=utf-8><title>Job digest</title><style>{CSS}</style>",
            f"<h1>Job digest &middot; {datetime.now():%Y-%m-%d %H:%M}</h1>",
            "<nav><a href=#cv>Your CV</a>"
+           f"<a href=#pipeline>Pipeline ({in_pipe})</a>"
            f"<a href=#visa>Visa &amp; relocation ({len(offering)})</a>" + "".join(
                f'<a href="#r{i}">{i}. {e(lb)} ({len(by_region[lb])})</a>' for i, lb in enumerate(labels, 1)) + "</nav>",
            _cv_section(cfg, e),
+           _pipeline_section(rows, due or {}, e),
            _visa_section(offering, names, search, e, (cfg.get("profile") or {}).get("location", ""))]
     for i, (name, label) in enumerate(zip(names, labels), 1):
         out.append(f"<h2 id=r{i}>{i}. {e(label)}</h2><details{' open' if i == 1 else ''}>"
