@@ -8,6 +8,7 @@ Takes the repetitive parts out of a job search across **Remote, Australia, New Z
 | **links** | Builds search URLs per region: LinkedIn, Indeed (au/nz/kr/ae/sg), Google Jobs, Google "ATS boards" and Glassdoor, plus local boards: Seek (AU/NZ), JobKorea, Wanted, Bayt, MyCareersFuture, JobStreet, Merojob and Kumarijob. |
 | **apply** | Opens your top matches one by one in a real browser, autofills name, email, phone, LinkedIn, GitHub and similar fields, and attaches your CV. **You review and click Submit.** |
 | **update-cv** | Opens each career site's resume page (LinkedIn, Indeed, Glassdoor, Seek, Bayt, JobStreet, Wanted, Merojob…) and attaches your newest CV. You check it and click Save. |
+| **cv-check** | Checks that your CV is ATS friendly by reading its text the way a parser does. It flags icon fonts that turn into junk, words that run together, hyphenation, missing contact details or sections, page count, images and tables, and the file name. It also compares your keywords with the jobs you're tracking (`--job <id>` for one job, `--region` for one region). |
 | **list / mark / stats / export** | Tracks every job as new, saved, applied, interview, offer, rejected or skipped, so you never apply twice. |
 
 ### Why it doesn't auto-submit or scrape LinkedIn/Indeed
@@ -40,6 +41,8 @@ python -m hunter apply --region Singapore --top 5
 python -m hunter apply 3fa9c1d2         # a specific job (id from list/digest)
 python -m hunter mark 3fa9c1d2 interview --note "HR call Tue"
 python -m hunter list --status applied
+python -m hunter cv-check               # ATS check + keyword match vs your top jobs
+python -m hunter cv-check --job 3fa9c1d2   # tailor your CV for one job
 python -m hunter update-cv              # after you edit your CV
 python -m hunter export                 # applications.csv
 ```

@@ -85,7 +85,7 @@ def norm(text: str) -> str:
 
 
 def has_term(term: str, ntext: str) -> bool:
-    return re.search(r"(?<![a-z0-9])" + re.escape(term) + r"(?![a-z0-9])", ntext) is not None
+    return re.search(r"(?<![a-z0-9])" + re.escape(term) + r"s?(?![a-z0-9])", ntext) is not None  # plural ok
 
 
 def check(path: Path) -> Result:
