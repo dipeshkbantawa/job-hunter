@@ -11,6 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
+from . import atscheck
 from .links import region
 from .tracker import ACTIVE, STATUSES
 
@@ -44,19 +45,53 @@ def _paths(root: Path, row):
             "cover": _inside(root, row["cover_pdf"])}
 
 
+_ATS = {}  # (path, mtime) -> (score, issues, text)
+
+
+def _ats_check(path: Path):
+    """Format check of a CV file, as `hunter cv-check` does; cached until the file changes."""
+    key = (str(path), path.stat().st_mtime)
+    if key not in _ATS:
+        try:
+            res = atscheck.check(path)
+            _ATS[key] = (res.score, [f"{lvl}: {title}" for lvl, title, _ in res.checks if lvl != "OK"], res.text)
+        except Exception as ex:
+            _ATS[key] = (None, [f"ATS check failed: {ex}"], "")
+    return _ATS[key]
+
+
+def _ats(cv: Path, kind: str, description: str, skills):
+    """ATS format score of the CV you'd send, plus how many of the ad's keywords that CV contains."""
+    score, issues, text = _ats_check(cv)
+    out = {"score": score, "cv": kind, "file": cv.name, "issues": issues, "keywords": None, "have": [], "missing": []}
+    if description and text:
+        gap = atscheck.keyword_gap(text, [description], skills)
+        if gap:
+            out["have"] = [t for t, _, ok in gap if ok]
+            out["missing"] = [t for t, _, ok in gap if not ok]
+            out["keywords"] = round(100 * len(out["have"]) / len(gap))
+    return out
+
+
 def _data(cfg, tracker):
     root = cfg["_root"]
     due = {r["id"]: f"{kind} ({days}d)" for r, days, kind in tracker.due_followups()}
+    master = _inside(root, (cfg.get("profile") or {}).get("resume"))
+    skills = cfg["search"].get("skills") or []
     jobs = []
     for r in tracker.list(None, 0, 100000):
         j = {k: r[k] for k in r.keys() if k != "description"}
-        j["docs"] = [k for k, p in _paths(root, r).items() if p]
+        paths = _paths(root, r)
+        j["docs"] = [k for k, p in paths.items() if p]
         j["due"] = due.get(r["id"], "")
+        cv, kind = (paths["cv"], "tailored") if paths["cv"] else (master, "master")
+        j["ats"] = _ats(cv, kind, r["description"], skills) if cv else None
         jobs.append(j)
     f = tracker.funnel()
     f = {k: ([dict(x) for x in v] if isinstance(v, list) else v) for k, v in f.items()}
     regions = [region(n)["label"] for n in (cfg["search"].get("regions") or ["Remote"])]
-    return {"jobs": jobs, "funnel": f, "statuses": STATUSES, "active": ACTIVE, "regions": regions}
+    return {"jobs": jobs, "funnel": f, "statuses": STATUSES, "active": ACTIVE, "regions": regions,
+            "master_ats": _ats_check(master)[0] if master else None}
 
 
 def make_handler(cfg, tracker, token):

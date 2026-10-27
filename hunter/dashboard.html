@@ -15,9 +15,10 @@
 --accent-bg:#14294a;--good:#5fd38d;--good-bg:#12321f;--warn:#f0b54a;--warn-bg:#36290f;--bad:#ff8378;--bad-bg:#3a1714;
 --chip:#232a31;--row-hover:#1c232a;--row-sel:#14294a;--shadow:none}
 *{box-sizing:border-box}
+[hidden]{display:none!important}
 body{margin:0;background:var(--bg);color:var(--text);font:14px/1.45 system-ui,-apple-system,"Segoe UI",sans-serif}
 a{color:var(--accent)}
-header{display:flex;align-items:center;gap:12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
+header{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;padding:14px 20px;border-bottom:1px solid var(--line);background:var(--panel)}
 header h1{font-size:17px;margin:0;font-weight:650}
 header .sp{flex:1}
 .muted{color:var(--muted)}
@@ -28,7 +29,8 @@ button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
 select,input,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 .wrap{padding:16px 20px;max-width:1600px;margin:0 auto}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
-.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;box-shadow:var(--shadow)}
+.kpi{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;box-shadow:var(--shadow);text-align:left;cursor:pointer}
+.kpi:hover{border-color:var(--accent)}.kpi.on{border-color:var(--accent);background:var(--accent-bg)}
 .kpi b{display:block;font-size:22px;font-weight:650;font-variant-numeric:tabular-nums}
 .kpi span{color:var(--muted);font-size:12px}
 .kpi.alert b{color:var(--warn)}
@@ -43,7 +45,12 @@ select,input,textarea{background:var(--panel);border:1px solid var(--line);borde
 .card{background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:var(--shadow)}
 table{border-collapse:collapse;width:100%}
 th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}
-th{font-size:12px;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel)}
+th{font-size:12px;color:var(--muted);font-weight:600;position:sticky;top:0;background:var(--panel);z-index:1}
+th[data-sort]{cursor:pointer;user-select:none;white-space:nowrap}th[data-sort]:hover{color:var(--text)}
+th[data-sort]::after{content:" \2195";opacity:.35}th.asc::after{content:" \25B2";opacity:1}th.desc::after{content:" \25BC";opacity:1}
+th.asc,th.desc{color:var(--text)}
+.filterchip{display:inline-flex;gap:6px;align-items:center;background:var(--accent-bg);color:var(--accent);border-radius:12px;padding:2px 4px 2px 10px;font-size:12.5px}
+.filterchip button{border:0;background:none;padding:0 6px;color:inherit}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 tbody tr{cursor:pointer}
 tbody tr:hover{background:var(--row-hover)}
@@ -71,6 +78,13 @@ tbody tr.sel{background:var(--row-sel)}
 .md pre{background:var(--chip);padding:8px;border-radius:6px;overflow:auto;white-space:pre-wrap}
 .md code{background:var(--chip);padding:0 4px;border-radius:4px;font-size:12.5px}
 .md blockquote{margin:6px 0;padding-left:10px;border-left:3px solid var(--line);color:var(--muted)}
+.ats{border:1px solid var(--line);border-radius:6px;padding:8px 10px;margin:10px 0;font-size:13px}
+.ats .kw{margin-top:4px}.ats .kw .chip{margin:1px 2px 1px 0}
+.miss{display:flex;flex-wrap:wrap;gap:3px;max-width:240px}
+.gaphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
+.gaps td:first-child{font-weight:550}
+.bar{height:6px;border-radius:3px;background:var(--bad);opacity:.7;min-width:2px}
+.legend{font-size:12px;color:var(--muted);margin:8px 2px 0}
 .notes{white-space:pre-wrap;font-size:13px;color:var(--muted)}
 .toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--text);color:var(--bg);
 padding:8px 14px;border-radius:6px;opacity:0;transition:opacity .2s;pointer-events:none}
@@ -97,19 +111,34 @@ kbd{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
     <select id="sort">
       <option value="priority">Sort: priority</option>
       <option value="rating">Sort: rating</option>
+      <option value="ats">Sort: ATS keywords</option>
       <option value="score">Sort: match score</option>
       <option value="posted">Sort: newest posted</option>
       <option value="company">Sort: company</option>
+      <option value="title">Sort: job title</option>
+      <option value="region">Sort: region</option>
+      <option value="status">Sort: status</option>
+      <option value="missing">Sort: missing skills</option>
     </select>
+    <span id="kpifilter"></span>
     <label><input type="checkbox" id="visa"> Visa / relocation only</label>
   </div>
   <div class="main">
     <div class="card tablebox"><table>
-      <thead><tr><th>Job</th><th class="hide-sm">Region</th><th>Status</th><th class="num">Rating</th><th class="num hide-sm">Match</th><th class="hide-sm">Posted</th></tr></thead>
+      <thead id="jobhead"><tr><th data-sort="title">Job</th><th data-sort="region" class="hide-sm">Region</th><th data-sort="status">Status</th><th data-sort="rating" class="num" title="Your 1-5 evaluation of the job (from /job-hunter evaluate)">Rating</th><th data-sort="ats" class="num" title="Share of this ad's ATS keywords found in the CV you would send">ATS</th><th data-sort="missing" class="hide-sm" title="Keywords in this ad that are not in the CV you would send">Missing skills</th><th data-sort="score" class="num hide-sm" title="Quick 0-100 match from hunter search, before any evaluation">Match</th><th data-sort="posted" class="hide-sm">Posted</th></tr></thead>
       <tbody id="rows"></tbody>
     </table><div class="empty" id="empty" hidden>No jobs in this view.</div></div>
     <div class="card detail" id="detail"><div class="empty">Select a job to see its details.</div></div>
   </div>
+  <div class="card" id="gapsbox" hidden>
+    <div class="gaphead"><div><b>Skill gaps</b> <span class="muted">· keywords job ads ask for that your CV does not have, counted over the jobs matching your filters</span></div>
+      <button id="gapcsv">Download CSV</button></div>
+    <div class="tablebox"><table class="gaps">
+      <thead id="gaphead"><tr><th data-sort="skill">Skill</th><th data-sort="jobs" class="num">Jobs asking</th><th style="width:18%"></th><th data-sort="rated" class="num" title="Jobs you evaluated that ask for it">Evaluated</th><th data-sort="avg" class="num" title="Average rating of those evaluated jobs">Avg rating</th><th class="hide-sm">Example jobs</th></tr></thead>
+      <tbody id="gaprows"></tbody>
+    </table><div class="empty" id="gapempty" hidden>No missing skills for these jobs.</div></div>
+  </div>
+<p class="legend"><b>Rating</b>: your 1–5 evaluation of the job (4.0+ = worth applying). <b>ATS</b>: share of the ad's keywords that are in the CV you'd send (tailored CV if built, else your master CV). <b>Missing skills</b>: the ad's keywords that your CV lacks; the <b>Skill gaps</b> tab totals them across jobs. <b>Match</b>: the quick 0–100 score from <code>hunter search</code>.</p>
 </div>
 <div class="toast" id="toast"></div>
 <script>
@@ -124,8 +153,13 @@ const TABS = [
   ["due","Follow-ups due", j => !!j.due],
   ["closed","Closed", j => CLOSED.includes(j.status)],
   ["all","All", () => true],
+  ["gaps","Skill gaps", null],
 ];
-let D = null, tab = "pipeline", sel = null, docKind = "report";
+let D = null, tab = "pipeline", sel = null, docKind = "report", kpi = null;
+// Column sorting: text columns start A-Z, number columns start highest first. Empty values always go last.
+const TEXT_KEYS = ["title", "company", "region", "status", "skill"];
+let jobSort = {key: "priority", dir: 1}, gapSort = {key: "jobs", dir: -1};
+const defaultDir = key => TEXT_KEYS.includes(key) ? 1 : -1;
 const $ = id => document.getElementById(id);
 const el = (tag, attrs = {}, ...kids) => {
   const n = document.createElement(tag);
@@ -146,6 +180,28 @@ function statusChip(s) {
 function ratingChip(r) {
   if (r == null) return el("span", {class: "muted"}, "–");
   return el("span", {class: "chip " + (r >= 4 ? "good" : r >= 3 ? "warn" : "bad")}, r.toFixed(1));
+}
+function atsChip(a) {
+  if (!a || a.keywords == null) return el("span", {class: "muted"}, "–");
+  return el("span", {class: "chip " + (a.keywords >= 70 ? "good" : a.keywords >= 40 ? "warn" : "bad")}, a.keywords + "%");
+}
+function atsBox(a) {
+  if (!a) return el("div", {class: "ats muted"}, "No CV found for the ATS check. Set profile.resume in config.yaml.");
+  const fmt = a.score == null ? "–" : a.score + "/100";
+  return el("div", {class: "ats"},
+    el("div", {}, el("b", {}, "ATS check"), " · ", a.cv === "tailored" ? "tailored CV" : "master CV", " ", el("span", {class: "muted"}, a.file)),
+    el("div", {}, "Format: ", el("span", {class: "chip " + (a.score >= 80 ? "good" : a.score >= 60 ? "warn" : "bad")}, fmt),
+      " Keywords from this ad: ", atsChip(a), a.keywords != null ? el("span", {class: "muted"}, " (" + a.have.length + " of " + (a.have.length + a.missing.length) + ")") : null),
+    a.issues.length ? el("div", {class: "muted"}, a.issues.join("; ")) : null,
+    a.missing.length ? el("div", {class: "kw"}, el("span", {class: "muted"}, "Missing: "), ...a.missing.slice(0, 20).map(t => el("span", {class: "chip bad"}, t))) : null,
+    a.have.length ? el("div", {class: "kw"}, el("span", {class: "muted"}, "Found: "), ...a.have.slice(0, 20).map(t => el("span", {class: "chip good"}, t))) : null,
+    a.missing.length ? el("div", {class: "muted"}, "Add only the missing terms you genuinely have, in the ad's wording.") : null);
+}
+function missingCell(a) {
+  const m = a?.missing || [];
+  if (!m.length) return el("span", {class: "muted"}, a?.keywords != null ? "none" : "–");
+  return el("div", {class: "miss"}, ...m.slice(0, 4).map(t => el("span", {class: "chip bad"}, t)),
+    m.length > 4 ? el("span", {class: "chip", title: m.slice(4).join(", ")}, "+" + (m.length - 4)) : null);
 }
 function nextStep(j) {
   if (j.due) return "Follow-up due: " + j.due + ". Draft it with /job-hunter followup, send it yourself, then run hunter followups --done " + j.id.slice(0, 8) + ".";
@@ -170,37 +226,111 @@ async function load(keep = true) {
   renderKpis(); render();
 }
 
+// Each card opens the jobs behind its number (same definitions as Tracker.funnel).
+const reached = states => j => states.includes(j.status);
+const KPIS = [
+  ["Tracked", f => f.tracked, null, "all"],
+  ["Evaluated", f => f.evaluated, j => j.rating != null],
+  ["Applied", f => f.applied, j => !!j.applied_at],
+  ["Responded", f => f.responded, reached(["responded","assessment","interview","offer","hired"]), null, true],
+  ["Interview", f => f.interview, reached(["interview","offer","hired"]), null, true],
+  ["Offer", f => f.offer, reached(["offer","hired"])],
+  ["Follow-ups due", () => D.jobs.filter(j => j.due).length, null, "due"],
+  ["Master CV ATS", () => D.master_ats == null ? "–" : D.master_ats + "/100", null, "gaps"],
+];
 function renderKpis() {
-  const f = D.funnel, due = D.jobs.filter(j => j.due).length;
-  const k = [["Tracked", f.tracked], ["Evaluated", f.evaluated], ["Applied", f.applied],
-    ["Responded", f.responded, pct(f.responded, f.applied)], ["Interview", f.interview, pct(f.interview, f.applied)],
-    ["Offer", f.offer], ["Follow-ups due", due, "", due > 0]];
-  $("kpis").replaceChildren(...k.map(([l, v, s, alert]) =>
-    el("div", {class: "kpi" + (alert ? " alert" : "")}, el("b", {}, v ?? 0), el("span", {}, l + (s ? " · " + s : "")))));
+  const f = D.funnel;
+  $("kpis").replaceChildren(...KPIS.map(([label, value, test, toTab, rate]) => {
+    const v = value(f), sub = label === "Master CV ATS" ? "format · see skill gaps" : rate ? pct(v, f.applied) : "";
+    const alert = (label === "Follow-ups due" && v > 0) || (label === "Master CV ATS" && D.master_ats != null && D.master_ats < 80);
+    return el("button", {class: "kpi" + (alert ? " alert" : "") + (kpi?.label === label ? " on" : ""),
+      title: toTab === "gaps" ? "Open the skill gaps" : "Show these jobs",
+      onclick: () => { kpi = test ? {label, test} : null; tab = toTab || "all"; sel = null; renderKpis(); render(); }},
+      el("b", {}, v ?? 0), el("span", {}, label + (sub ? " · " + sub : "")));
+  }));
 }
 
 function filtered() {
   const q = $("q").value.trim().toLowerCase(), reg = $("region").value, visa = $("visa").checked;
-  const test = TABS.find(t => t[0] === tab)[2];
-  let list = D.jobs.filter(j => test(j)
+  const test = TABS.find(t => t[0] === tab)[2] || (() => true);
+  let list = D.jobs.filter(j => test(j) && (!kpi || kpi.test(j))
     && (!reg || j.region === reg)
     && (!visa || ["visa","relocation","visa+relocation","open"].includes(j.visa))
-    && (!q || [j.title, j.company, j.location, j.notes, j.matched, j.source, j.id].join(" ").toLowerCase().includes(q)));
-  const by = $("sort").value, stage = j => { const i = PIPE.indexOf(j.status); return i < 0 ? 99 : i; };
-  const cmp = {
-    priority: (a, b) => stage(a) - stage(b) || (a.region_rank ?? 99) - (b.region_rank ?? 99) || (b.rating ?? -1) - (a.rating ?? -1) || b.score - a.score,
-    rating: (a, b) => (b.rating ?? -1) - (a.rating ?? -1) || b.score - a.score,
-    score: (a, b) => b.score - a.score,
-    posted: (a, b) => String(b.posted || "").localeCompare(String(a.posted || "")),
-    company: (a, b) => String(a.company).localeCompare(String(b.company)),
-  }[by];
-  return list.sort(cmp);
+    && (!q || [j.title, j.company, j.location, j.notes, j.matched, j.source, j.id, ...(j.ats?.missing || [])].join(" ").toLowerCase().includes(q)));
+  const stage = j => { const i = PIPE.indexOf(j.status); return i < 0 ? 99 : i; };
+  if (jobSort.key === "priority") return list.sort((a, b) => stage(a) - stage(b) || (a.region_rank ?? 99) - (b.region_rank ?? 99)
+    || (b.rating ?? -1) - (a.rating ?? -1) || b.score - a.score);
+  const get = {title: j => j.title, company: j => j.company, region: j => j.region_rank ?? (j.region ? 98 : null),
+    status: j => j.status, rating: j => j.rating, ats: j => j.ats?.keywords, missing: j => j.ats ? j.ats.missing.length : null,
+    score: j => j.score, posted: j => j.posted}[jobSort.key];
+  return list.sort((a, b) => compare(get(a), get(b), jobSort.dir) || b.score - a.score);
+}
+function compare(x, y, dir) {
+  const ex = x == null || x === "", ey = y == null || y === "";
+  if (ex || ey) return ex - ey;  // empty last, whichever direction
+  return dir * (typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), undefined, {sensitivity: "base"}));
+}
+function headClick(e, state, after) {
+  const th = e.target.closest("th[data-sort]");
+  if (!th) return;
+  const key = th.dataset.sort;
+  state.dir = state.key === key ? -state.dir : defaultDir(key);
+  state.key = key;
+  after();
+}
+function markHead(id, state) {
+  document.querySelectorAll("#" + id + " th[data-sort]").forEach(th => {
+    th.classList.toggle("asc", th.dataset.sort === state.key && state.dir > 0);
+    th.classList.toggle("desc", th.dataset.sort === state.key && state.dir < 0);
+  });
 }
 
+// Missing skills totalled over the jobs passing the region/visa filters (search narrows the skill names).
+function gaps() {
+  const q = $("q").value.trim().toLowerCase(), reg = $("region").value, visa = $("visa").checked, m = new Map();
+  for (const j of D.jobs) {
+    if ((reg && j.region !== reg) || (visa && !["visa","relocation","visa+relocation","open"].includes(j.visa))) continue;
+    for (const t of j.ats?.missing || []) {
+      if (!m.has(t)) m.set(t, {skill: t, jobs: []});
+      m.get(t).jobs.push(j);
+    }
+  }
+  return [...m.values()].filter(g => !q || g.skill.includes(q)).map(g => {
+    const rated = g.jobs.filter(j => j.rating != null);
+    return {...g, rated: rated.length, avg: rated.length ? rated.reduce((a, j) => a + j.rating, 0) / rated.length : null};
+  }).sort((a, b) => {
+    const get = {skill: g => g.skill, jobs: g => g.jobs.length, rated: g => g.rated || null, avg: g => g.avg}[gapSort.key];
+    return compare(get(a), get(b), gapSort.dir) || b.jobs.length - a.jobs.length || a.skill.localeCompare(b.skill);
+  });
+}
+function renderGaps() {
+  markHead("gaphead", gapSort);
+  const list = gaps(), max = Math.max(1, ...list.map(g => g.jobs.length));
+  $("gapempty").hidden = list.length > 0;
+  $("gaprows").replaceChildren(...list.map(g => el("tr", {title: "Show the jobs asking for " + g.skill,
+      onclick: () => { tab = "all"; kpi = null; $("q").value = g.skill; sel = null; renderKpis(); render(); }},
+    el("td", {}, g.skill),
+    el("td", {class: "num"}, g.jobs.length),
+    el("td", {}, el("div", {class: "bar", style: "width:" + Math.round(100 * g.jobs.length / max) + "%"})),
+    el("td", {class: "num"}, g.rated || "–"),
+    el("td", {class: "num"}, g.avg == null ? "–" : g.avg.toFixed(1)),
+    el("td", {class: "hide-sm sub"}, g.jobs.slice().sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)).slice(0, 3)
+      .map(j => j.company + " – " + j.title).join(" · ") + (g.jobs.length > 3 ? " …" : "")))));
+}
 function render() {
   $("tabs").replaceChildren(...TABS.map(([id, label, test]) =>
-    el("button", {class: "tab" + (id === tab ? " on" : ""), onclick: () => { tab = id; sel = null; render(); }},
-      label, el("span", {class: "n"}, D.jobs.filter(test).length))));
+    el("button", {class: "tab" + (id === tab ? " on" : ""), onclick: () => { tab = id; kpi = null; sel = null; renderKpis(); render(); }},
+      label, el("span", {class: "n"}, test ? D.jobs.filter(test).length : gaps().length))));
+  const isGaps = tab === "gaps";
+  document.querySelector(".main").hidden = isGaps;
+  $("gapsbox").hidden = !isGaps;
+  $("sort").hidden = isGaps;
+  $("q").placeholder = isGaps ? "Search skills…" : "Search title, company, location, notes, missing skills…";
+  $("kpifilter").replaceChildren(kpi && !isGaps ? el("span", {class: "filterchip"}, "Showing: " + kpi.label,
+    el("button", {title: "Clear", onclick: () => { kpi = null; renderKpis(); render(); }}, "\u2715")) : "");
+  if (isGaps) return renderGaps();
+  $("sort").value = [...$("sort").options].some(o => o.value === jobSort.key) ? jobSort.key : "priority";
+  markHead("jobhead", jobSort);
   const list = filtered();
   $("empty").hidden = list.length > 0;
   $("rows").replaceChildren(...list.map(j => {
@@ -211,6 +341,8 @@ function render() {
       el("td", {class: "hide-sm"}, j.region || "–"),
       el("td", {}, statusChip(j.status)),
       el("td", {class: "num"}, ratingChip(j.rating)),
+      el("td", {class: "num"}, atsChip(j.ats)),
+      el("td", {class: "hide-sm"}, missingCell(j.ats)),
       el("td", {class: "num hide-sm"}, j.score),
       el("td", {class: "hide-sm sub"}, j.posted || "–"));
   }));
@@ -259,6 +391,7 @@ function renderDetail() {
       el("dt", {}, "Match score"), el("dd", {}, j.score + (j.matched ? " · " + j.matched : "")),
       el("dt", {}, "Status since"), el("dd", {}, (j.status_at || j.found_at || "–").replace("T", " ")),
       j.applied_at ? [el("dt", {}, "Applied"), el("dd", {}, j.applied_at.replace("T", " "))] : null),
+    atsBox(j.ats),
     el("div", {class: "statusform"}, statusSel, note, save),
     j.notes ? el("div", {class: "notes"}, j.notes) : null,
     docs.length ? el("div", {class: "doctabs"}, ...docs.map(k => el("button", {class: "tab" + (k === docKind ? " on" : ""),
@@ -305,10 +438,22 @@ function md(src) {
   return out.join("");
 }
 
-["q", "region", "sort", "visa"].forEach(id => $(id).addEventListener("input", render));
+["q", "region", "visa"].forEach(id => $(id).addEventListener("input", render));
+$("sort").addEventListener("input", () => { jobSort = {key: $("sort").value, dir: defaultDir($("sort").value)}; render(); });
+$("jobhead").addEventListener("click", e => headClick(e, jobSort, render));
+$("gaphead").addEventListener("click", e => headClick(e, gapSort, render));
+$("gapcsv").onclick = () => {
+  const cell = v => '"' + String(v).replace(/"/g, '""') + '"';
+  const rows = [["skill", "jobs_asking", "evaluated_jobs", "avg_rating", "jobs"]].concat(gaps().map(g =>
+    [g.skill, g.jobs.length, g.rated, g.avg == null ? "" : g.avg.toFixed(1), g.jobs.map(j => j.company + " - " + j.title).join("; ")]));
+  const a = el("a", {href: URL.createObjectURL(new Blob(["\ufeff" + rows.map(r => r.map(cell).join(",")).join("\r\n")], {type: "text/csv"})),
+    download: "skill-gaps-" + new Date().toISOString().slice(0, 10) + ".csv"});
+  a.click(); URL.revokeObjectURL(a.href);
+};
 $("reload").onclick = () => load().then(() => toast("Reloaded"));
 document.addEventListener("keydown", e => {
   if (e.target.matches("input,select,textarea")) { if (e.key === "Escape") e.target.blur(); return; }
+  if (tab === "gaps" && e.key !== "/" && e.key !== "r") return;
   const ids = filtered().map(j => j.id), i = ids.indexOf(sel);
   if (e.key === "/") { e.preventDefault(); $("q").focus(); }
   else if (e.key === "j" || e.key === "ArrowDown") { e.preventDefault(); if (ids.length) select(ids[Math.min(i + 1, ids.length - 1)]); }
