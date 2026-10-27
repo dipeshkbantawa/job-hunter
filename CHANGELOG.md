@@ -6,6 +6,10 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 ## [Unreleased]
 ### Added
 - Kowork search links for South Korea; Kowork, JobKorea and SEEK Pass in the career sites list.
+- South Korea jobs show whether the ad confirms foreign workers are hired (E-7 sponsorship, 외국인 지원 가능) and
+  flag Korean-fluency requirements and Korean-only ads, in the dashboard and digest; `evaluate` treats Korean
+  fluency or nationals-only as a hard blocker and makes "confirm E-7 sponsorship" the first step when the ad is silent.
+- `hunter retag`: re-check stored ads for visa and foreign-worker signals after detection rules change.
 
 ## [0.5.0] - 2026-10-27
 ### Added

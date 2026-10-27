@@ -340,6 +340,21 @@ def cmd_live(cfg, tracker, args):
         print(f"  {r['id'][:8]}  {p.live:<8} {r['title'][:50]} @ {r['company'][:24]}  ({p.reason})")
 
 
+def cmd_retag(cfg, tracker, args):
+    """Re-read stored job ads for visa / foreign-worker signals (after the detection rules change)."""
+    from types import SimpleNamespace
+    changed = 0
+    for r in tracker.list(None, 0, 100000):
+        if not r["description"]:
+            continue
+        visa = matcher.visa_status(SimpleNamespace(description=r["description"]))
+        if visa != (r["visa"] or ""):
+            tracker.set_visa(r["id"], visa)
+            changed += 1
+            print(f"  {r['id'][:8]}  {r['visa'] or '-':<15} -> {visa or '-':<15} {r['title'][:50]} @ {r['company']}")
+    print(f"Re-tagged {changed} job(s).")
+
+
 def cmd_record(cfg, tracker, args):
     row = tracker.get(args.id)
     if args.rating is not None and not 1 <= args.rating <= 5:
@@ -509,6 +524,8 @@ def main():
     p.add_argument("ids", nargs="*")
     p.add_argument("--limit", type=int, default=20)
     p.set_defaults(fn=cmd_live)
+
+    sub.add_parser("retag", help="re-check stored ads for visa / foreign-worker signals").set_defaults(fn=cmd_retag)
 
     p = sub.add_parser("record", help="store an evaluation rating/report and generated documents")
     p.add_argument("id")

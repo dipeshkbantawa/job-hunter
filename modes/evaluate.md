@@ -14,6 +14,12 @@ Decide whether one job is worth applying to, and write the evidence down.
 3. **Work authorization**: on-site outside Nepal and the ad says no visa sponsorship, or remote limited to
    US/EU/UK residents. This is a hard blocker: score at most 2.0 and say so in the first line.
 4. **Dealbreakers** from `profile.md`.
+5. **South Korea: foreign workers.** Confirm from the ad that the employer hires foreign workers (E-7 visa
+   sponsorship, "foreigners welcome", 외국인 지원 가능) and does not require Korean fluency (`한국어 능통/필수`,
+   "fluent Korean", TOPIK 3+). Korean fluency required, or nationals / existing visa holders only, is a hard
+   blocker: score at most 2.0 and say so in the first line. If the ad is silent, write "Foreign workers: not
+   confirmed" in the work-authorization part of the report, and make "confirm E-7 sponsorship with the employer
+   or on Kowork" the first next step; do not assume it.
 
 ## 2. Report: write `applications/<id>-<slug>/report.md`
 

@@ -147,6 +147,17 @@ const PIPE = ["offer","interview","assessment","responded","applied","evaluated"
 const CLOSED = ["hired","rejected","discarded","skipped"];
 const VISA = {"visa+relocation":["good","Visa + relocation"],"visa":["good","Visa sponsorship"],
   "relocation":["good","Relocation support"],"open":["info","Open to relocating"],"no":["bad","No sponsorship"]};
+// South Korea: show whether the ad confirms foreign workers are hired, and any Korean-language requirement.
+const KOREA = {"no": ["bad", "Foreign workers: not accepted"], "": ["warn", "Foreign workers: not confirmed"]};
+const KOREAN = {"required": "Korean required", "korean-ad": "Ad in Korean"};
+function visaChips(j) {
+  if (j.region === "South Korea") {
+    const k = KOREA[j.visa || ""] || ["good", "Foreign workers: accepted"];
+    return [el("span", {class: "chip " + k[0]}, k[1]), j.korean ? el("span", {class: "chip bad"}, KOREAN[j.korean]) : null];
+  }
+  const v = VISA[j.visa];
+  return v ? [el("span", {class: "chip " + v[0]}, v[1])] : [];
+}
 const TABS = [
   ["pipeline","Pipeline", j => PIPE.includes(j.status)],
   ["new","New matches", j => j.status === "new"],
@@ -204,6 +215,11 @@ function missingCell(a) {
     m.length > 4 ? el("span", {class: "chip", title: m.slice(4).join(", ")}, "+" + (m.length - 4)) : null);
 }
 function nextStep(j) {
+  if (j.region === "South Korea" && j.korean === "required" && !["applied","responded","assessment","interview","offer","hired"].includes(j.status))
+    return "The ad asks for Korean fluency. Skip it unless you speak Korean.";
+  if (j.region === "South Korea" && !j.visa && ["new","saved","evaluated"].includes(j.status))
+    return "South Korea: the ad doesn't say it hires foreign workers. Confirm E-7 visa sponsorship with the employer (or on Kowork) before applying.";
+  if (j.region === "South Korea" && j.visa === "no") return "South Korea: the ad rules out foreign workers. Skip it.";
   if (j.due) return "Follow-up due: " + j.due + ". Draft it with /job-hunter followup, send it yourself, then run hunter followups --done " + j.id.slice(0, 8) + ".";
   if (j.status === "new" || j.status === "saved") return "Evaluate it: /job-hunter evaluate " + j.id.slice(0, 8);
   if (j.status === "evaluated") return (j.rating ?? 0) >= 4
@@ -337,7 +353,7 @@ function render() {
     const visa = VISA[j.visa];
     return el("tr", {class: j.id === sel ? "sel" : "", "data-id": j.id, onclick: () => select(j.id)},
       el("td", {}, el("div", {class: "t"}, j.title), el("div", {class: "sub"}, j.company + (j.location ? " · " + j.location : ""),
-        visa ? [" ", el("span", {class: "chip " + visa[0]}, visa[1])] : null, j.due ? [" ", el("span", {class: "chip warn"}, "follow-up")] : null)),
+        ...visaChips(j).filter(Boolean).flatMap(c => [" ", c]), j.due ? [" ", el("span", {class: "chip warn"}, "follow-up")] : null)),
       el("td", {class: "hide-sm"}, j.region || "–"),
       el("td", {}, statusChip(j.status)),
       el("td", {class: "num"}, ratingChip(j.rating)),
@@ -378,7 +394,7 @@ function renderDetail() {
     el("h2", {}, j.title),
     el("div", {class: "muted"}, j.company + (j.location ? " · " + j.location : "")),
     el("div", {class: "row"}, statusChip(j.status), j.rating != null ? [el("span", {class: "muted"}, "Rating"), ratingChip(j.rating)] : null,
-      visa ? el("span", {class: "chip " + visa[0]}, visa[1]) : null,
+      ...visaChips(j),
       j.live ? el("span", {class: "chip " + (j.live === "live" ? "good" : j.live === "closed" ? "bad" : "")}, "posting " + j.live) : null),
     el("div", {class: "row"}, el("a", {href: j.url, target: "_blank", rel: "noopener noreferrer"}, "Open posting ↗"),
       fileLink("cv", "CV PDF"), fileLink("cover", "Cover letter PDF")),

@@ -13,6 +13,7 @@ from urllib.parse import parse_qs, urlparse
 
 from . import __version__, atscheck
 from .links import region
+from .matcher import korean_required
 from .tracker import ACTIVE, STATUSES
 
 PAGE = Path(__file__).with_name("dashboard.html")
@@ -84,6 +85,7 @@ def _data(cfg, tracker):
         paths = _paths(root, r)
         j["docs"] = [k for k, p in paths.items() if p]
         j["due"] = due.get(r["id"], "")
+        j["korean"] = korean_required(r["description"])
         cv, kind = (paths["cv"], "tailored") if paths["cv"] else (master, "master")
         j["ats"] = _ats(cv, kind, r["description"], skills) if cv else None
         jobs.append(j)

@@ -84,6 +84,7 @@ python -m hunter cv-check --job 62f55eab # ATS + keyword match for one job
 python -m hunter update-cv               # attach the new CV on each career site
 python -m hunter digest                  # rebuild the HTML page without fetching
 python -m hunter dashboard               # live dashboard in your browser (Ctrl+C to stop)
+python -m hunter retag                   # re-check stored ads for visa / foreign-worker signals
 ```
 
 During `apply`, at each job:

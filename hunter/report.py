@@ -5,6 +5,7 @@ from datetime import datetime
 from pathlib import Path
 
 from .links import board_links, company_pages, region, visa_links
+from .matcher import korean_required
 
 CSS = """body{font:14px system-ui,sans-serif;margin:24px;background:#f7f7f8;color:#1f2328}
 h1{font-size:20px}h2{font-size:17px;margin:32px 0 8px}table{border-collapse:collapse;width:100%;background:#fff}
@@ -54,9 +55,21 @@ VISA_BADGE = {"visa+relocation": ("ok", "Visa + relocation"), "visa": ("ok", "Vi
               "no": ("no", "No sponsorship")}
 
 
+KOREA_BADGE = {"no": ("no", "Foreign workers: not accepted"), "": ("open", "Foreign workers: not confirmed")}
+KOREAN_BADGE = {"required": "Korean required", "korean-ad": "Ad in Korean"}
+
+
 def _badge(r, e):
-    kind, text = VISA_BADGE.get(r["visa"] or "", ("", ""))
-    return f" <span class=\"badge {kind}\">{e(text)}</span>" if text else ""
+    out = []
+    if r["region"] == "South Korea":  # confirm the employer hires foreign workers before applying
+        kind, text = KOREA_BADGE.get(r["visa"] or "", ("ok", "Foreign workers: accepted"))
+        out.append((kind, text))
+        lang = korean_required(r["description"])
+        if lang:
+            out.append(("no", KOREAN_BADGE[lang]))
+    else:
+        out.append(VISA_BADGE.get(r["visa"] or "", ("", "")))
+    return "".join(f" <span class=\"badge {kind}\">{e(text)}</span>" for kind, text in out if text)
 
 
 def _jobs_table(rows, e, empty="No matched jobs from the job APIs yet. Use the search links above."):

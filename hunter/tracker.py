@@ -95,6 +95,10 @@ class Tracker:
             (status, now, applied, status, now, status, note, note, job_id))
         self.db.commit()
 
+    def set_visa(self, job_id: str, visa: str):
+        self.db.execute("UPDATE jobs SET visa=? WHERE id=?", (visa, job_id))
+        self.db.commit()
+
     def add_note(self, job_id: str, note: str):
         self.db.execute("UPDATE jobs SET notes=TRIM(notes || ' | ' || ?, ' |') WHERE id=?", (note, job_id))
         self.db.commit()

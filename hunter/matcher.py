@@ -84,13 +84,21 @@ VISA_NO = re.compile(
     r"|(?:not\s+)?require\s+(?:\w+\s+){0,2}sponsorship"
     r"|(?:must|need to)\s+(?:already\s+)?(?:have|hold)\s+(?:the\s+|a\s+)?(?:current\s+)?"
     r"(?:right to work|work authori[sz]ation|valid work)"
-    r"|relocation\s+(?:is\s+)?not\s+(?:\w+\s+)?(?:provided|offered|available|supported)", re.I)
+    r"|relocation\s+(?:is\s+)?not\s+(?:\w+\s+)?(?:provided|offered|available|supported)"
+    # South Korea: nationals / existing visa holders only
+    r"|korean\s+(?:citizens?|nationals?)\s+only|only\s+(?:\w+\s+){0,3}korean\s+(?:citizens?|nationals?)"
+    r"|f-?[2456]\s*(?:visa\s*)?(?:holders?\s+)?only"
+    r"|(?:must|need to)\s+(?:already\s+)?(?:have|hold)\s+(?:a\s+)?valid\s+korean\s+(?:work\s+)?visa"
+    r"|외국인\s*(?:지원\s*)?불가|내국인\s*(?:만|한정)", re.I)
 VISA_YES = re.compile(
     r"visa\s+sponsorship\s+(?:is\s+)?(?:available|provided|offered|possible|support)"
     r"|(?:we|will|can|able to|happy to|willing to)\s+(?:\w+\s+){0,2}sponsor"
     r"|sponsor(?:ship)?\s+(?:for|of)\s+(?:a\s+|an\s+|your\s+)?(?:work\s+|employment\s+)?(?:visa|permit|pass)"
     r"|(?:employment\s+pass|work\s+visa|work\s+permit)\s+(?:sponsorship|support|assistance)"
-    r"|(?:help|assist|support)\w*\s+(?:you\s+)?with\s+(?:your\s+)?(?:visa|work permit|immigration)", re.I)
+    r"|(?:help|assist|support)\w*\s+(?:you\s+)?with\s+(?:your\s+)?(?:visa|work permit|immigration)"
+    # South Korea: E-7 (skilled worker) sponsorship, 비자 지원 = visa support
+    r"|e-?7\s*(?:visa\s*)?(?:sponsor|support|available|provided|issu)|(?:sponsor|support|issu)\w*\s+(?:\w+\s+){0,2}e-?7"
+    r"|비자\s*(?:지원|스폰서|발급\s*지원)", re.I)
 RELOC_YES = re.compile(
     r"relocation\s+(?:support|assistance|package|allowance|bonus|benefits?|help)"
     r"|(?:full|paid|generous)\s+relocation"
@@ -101,7 +109,27 @@ RELOC_YES = re.compile(
 
 OPEN_INTL = re.compile(  # accepts people moving in, without promising support
     r"willing to relocate|open to relocation|relocat\w* (?:candidates|applicants)|expatriate"
-    r"|international (?:candidates|applicants)|candidates from (?:abroad|overseas|any country)", re.I)
+    r"|international (?:candidates|applicants)|candidates from (?:abroad|overseas|any country)"
+    r"|foreign(?:ers|\s+nationals|\s+candidates|\s+applicants|\s+workers)\s+(?:are\s+)?(?:welcome|eligible|can apply|may apply)"
+    r"|open to foreigners|외국인\s*(?:지원\s*가능|가능|환영|우대|채용)", re.I)
+
+KOREAN_REQ = re.compile(
+    r"(?:native|fluent|fluency|business[- ]level|proficient|proficiency)\s+(?:\w+\s+){0,3}korean"
+    r"|korean\s+(?:language\s+)?(?:\w+\s+){0,2}(?:fluency|fluent|proficiency|native)"
+    r"|topik\s*(?:level\s*)?[3-6]|한국어\s*(?:능력\s*)?(?:능통|원어민|필수)|한국어\s*및\s*영어\s*능통", re.I)
+NICE_TO_HAVE = re.compile(r"plus|preferred|advantage|bonus|nice to have|desirable|우대", re.I)
+
+
+def korean_required(description: str) -> str:
+    """'required' when the ad asks for Korean fluency, 'korean-ad' when it is written mostly in Korean,
+    '' otherwise. 'Korean is a plus' does not count."""
+    text = re.sub(r"\s+", " ", (description or "").replace(" ", " "))
+    for m in KOREAN_REQ.finditer(text):
+        if not NICE_TO_HAVE.search(text[m.end():m.end() + 40]):
+            return "required"
+    hangul = sum("가" <= ch <= "힣" for ch in text)
+    latin = sum(ch.isascii() and ch.isalpha() for ch in text)
+    return "korean-ad" if hangul > latin else ""
 
 
 def visa_status(job) -> str:
