@@ -23,7 +23,7 @@ from pathlib import Path
 
 import yaml
 
-from . import links, matcher, sources
+from . import __version__, links, matcher, sources
 from .report import write_report
 from .tracker import STATUSES, Tracker
 
@@ -439,6 +439,7 @@ def cmd_export(cfg, tracker, args):
 def main():
     ap = argparse.ArgumentParser(prog="hunter", description="Remote job search + application assistant")
     ap.add_argument("-c", "--config", default=str(ROOT / "config.yaml"))
+    ap.add_argument("--version", action="version", version=f"job-hunter {__version__}")
     sub = ap.add_subparsers(dest="cmd", required=True)
 
     p = sub.add_parser("search", help="fetch, filter and score jobs")

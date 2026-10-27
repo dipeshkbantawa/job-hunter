@@ -11,7 +11,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
-from . import atscheck
+from . import __version__, atscheck
 from .links import region
 from .tracker import ACTIVE, STATUSES
 
@@ -90,7 +90,7 @@ def _data(cfg, tracker):
     f = tracker.funnel()
     f = {k: ([dict(x) for x in v] if isinstance(v, list) else v) for k, v in f.items()}
     regions = [region(n)["label"] for n in (cfg["search"].get("regions") or ["Remote"])]
-    return {"jobs": jobs, "funnel": f, "statuses": STATUSES, "active": ACTIVE, "regions": regions,
+    return {"version": __version__, "jobs": jobs, "funnel": f, "statuses": STATUSES, "active": ACTIVE, "regions": regions,
             "master_ats": _ats_check(master)[0] if master else None}
 
 

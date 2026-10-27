@@ -217,7 +217,7 @@ function nextStep(j) {
 async function load(keep = true) {
   const r = await fetch("/api/data", {cache: "no-store"});
   D = await r.json();
-  $("stamp").textContent = "updated " + new Date().toLocaleTimeString();
+  $("stamp").textContent = "v" + D.version + " · updated " + new Date().toLocaleTimeString();
   const rs = $("region"), cur = rs.value;
   rs.length = 1;
   D.regions.forEach(x => rs.add(new Option(x, x)));

@@ -29,3 +29,12 @@ agent) do the judgment work through the modes in `modes/`, routed by the `/job-h
 6. Record every evaluation and document in the tracker with `hunter record` / `cv build --job` / `cover build --job`,
    so the digest and stats stay true.
 7. Write in clear, plain English. No "passionate", "synergy", "I would love the opportunity".
+
+## Version control
+- Commit each finished, tested change to the code (`hunter/`, `modes/`, docs) with a clear message. Never commit
+  personal data: `config.yaml`, `cv.yaml`, `profile.md`, `story-bank.md`, `cv/`, `data/`, `output/`, `applications/`
+  are git-ignored and must stay that way.
+- Record every change under `## [Unreleased]` in `CHANGELOG.md`. When releasing, bump `__version__` in
+  `hunter/__init__.py` (new feature: MINOR, fix: PATCH), move the notes under the new version, commit, and tag
+  `vX.Y.Z`.
+- Push to GitHub only when the candidate asks.
