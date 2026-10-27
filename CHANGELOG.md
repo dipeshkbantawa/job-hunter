@@ -5,6 +5,7 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 
 ## [Unreleased]
 ### Added
+- SDOC (sdoc.gov.np/vacancies, Government of Nepal) as a Nepal company career page in `config.example.yaml`.
 - Kowork search links for South Korea; Kowork, JobKorea and SEEK Pass in the career sites list.
 - South Korea jobs show whether the ad confirms foreign workers are hired (E-7 sponsorship, 외국인 지원 가능) and
   flag Korean-fluency requirements and Korean-only ads, in the dashboard and digest; `evaluate` treats Korean

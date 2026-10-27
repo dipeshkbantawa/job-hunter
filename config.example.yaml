@@ -77,6 +77,9 @@ company_careers:               # employers you want to watch; shown under their 
   Dubai:
     - name: du
       url: https://www.du.ae/about-us/careers
+  Nepal:
+    - name: SDOC (Government of Nepal software office)
+      url: https://sdoc.gov.np/vacancies
   # Australia:
   #   - name: Some Company
   #     url: https://example.com/careers
