@@ -5,6 +5,7 @@
     python -m hunter links --region Australia   # LinkedIn / Indeed / Google / Seek ... searches
     python -m hunter apply --top 10    # walk through top matches in a browser with autofill
     python -m hunter update-cv         # attach your latest CV on each career site
+    python -m hunter cv-check          # ATS-friendliness + keyword match vs your jobs
     python -m hunter mark <id> applied
 """
 import argparse
@@ -133,6 +134,40 @@ def cmd_update_cv(cfg, tracker, args):
     update_cv_sites(cfg, file_from(cfg, args.file or cfg["profile"].get("resume")))
 
 
+def cmd_cv_check(cfg, tracker, args):
+    from . import atscheck
+    path = file_from(cfg, args.file or cfg["profile"].get("resume"))
+    if not path:
+        raise SystemExit("No CV: set profile.resume in config.yaml or pass --file")
+    res = atscheck.check(path)
+    print(f"\nATS check: {path.name}\n")
+    for level, title, detail in sorted(res.checks, key=lambda c: ("FAIL", "WARN", "OK").index(c[0])):
+        print(f"  [{level:<4}] {title}")
+        if detail and level != "OK":
+            print(f"         {detail}")
+    print(f"\n  Format score: {res.score}/100   (FAIL -15, WARN -5)")
+
+    if args.job:
+        rows = [tracker.get(args.job)]
+        target = f"{rows[0]['title']} @ {rows[0]['company']}"
+    else:
+        rows = [r for r in tracker.list(None, 0, args.top, args.region) if r["description"]]
+        target = f"your top {len(rows)} tracked jobs" + (f" in {args.region}" if args.region else "")
+    texts = [r["description"] for r in rows if r["description"]]
+    if not texts:
+        print("\n  (No job descriptions stored yet - run `search` first for the keyword check.)")
+        return
+    gap = atscheck.keyword_gap(res.text, texts, cfg["search"].get("skills") or [])
+    have = [g for g in gap if g[2]]
+    miss = [g for g in gap if not g[2]]
+    total = sum(n for _, n, _ in gap) or 1
+    cover = round(100 * sum(n for _, n, ok in gap if ok) / total)
+    print(f"\nKeyword match vs {target}: {cover}% of keyword mentions are in your CV")
+    print("  In your CV:      " + ", ".join(f"{t} ({n})" for t, n, _ in have[:20]))
+    print("  Missing (jobs):  " + ", ".join(f"{t} ({n})" for t, n, _ in miss[:20]))
+    print("  Add the missing ones you genuinely have, using the job ad's exact wording.")
+
+
 def cmd_stats(cfg, tracker, args):
     for r in tracker.stats():
         print(f"  {r['status']:<10} {r['n']}")
@@ -185,6 +220,13 @@ def main():
     p = sub.add_parser("update-cv", help="attach your latest CV on each career site")
     p.add_argument("--file", help="CV file (defaults to profile.resume)")
     p.set_defaults(fn=cmd_update_cv)
+
+    p = sub.add_parser("cv-check", help="check your CV is ATS friendly + keyword match vs your jobs")
+    p.add_argument("--file", help="CV file (defaults to profile.resume)")
+    p.add_argument("--job", help="compare against one job id instead of your top jobs")
+    p.add_argument("--top", type=int, default=40, help="how many top tracked jobs to compare against")
+    p.add_argument("--region", help="only compare against jobs in this region")
+    p.set_defaults(fn=cmd_cv_check)
 
     sub.add_parser("stats", help="counts per status").set_defaults(fn=cmd_stats)
 

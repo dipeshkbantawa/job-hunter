@@ -24,6 +24,16 @@ def _cv_section(cfg, e):
     if path and path.exists():
         cv = (f"<b>{e(path.name)}</b> &middot; last changed {datetime.fromtimestamp(path.stat().st_mtime):%Y-%m-%d %H:%M}"
               f" &middot; <a href=\"{e(path.as_uri())}\">open</a>")
+        try:
+            from .atscheck import check
+            res = check(path)
+            issues = [f"{lvl}: {title}" for lvl, title, _ in res.checks if lvl != "OK"]
+            cls = "" if res.score >= 80 else " class=warn"
+            cv += (f"<div><b{cls}>ATS format score {res.score}/100</b>"
+                   + (f" &middot; {e('; '.join(issues))}" if issues else "")
+                   + " &middot; details: <code>python -m hunter cv-check</code></div>")
+        except Exception as ex:
+            cv += f"<div class=warn>ATS check failed: {e(str(ex))}</div>"
     else:
         cv = (f"<span class=warn>CV not found ({e(str(path or 'profile.resume not set'))}). "
               "Put your CV in the <code>cv</code> folder and set <code>profile.resume</code> in config.yaml.</span>")
