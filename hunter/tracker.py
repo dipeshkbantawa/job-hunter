@@ -23,23 +23,28 @@ class Tracker:
         self.db.row_factory = sqlite3.Row
         self.db.execute(SCHEMA)
         cols = {r[1] for r in self.db.execute("PRAGMA table_info(jobs)")}
-        for col, typ in (("region", "TEXT"), ("region_rank", "INTEGER"), ("description", "TEXT")):
+        for col, typ in (("region", "TEXT"), ("region_rank", "INTEGER"), ("description", "TEXT"), ("visa", "TEXT")):
             if col not in cols:  # databases created by older versions
                 self.db.execute(f"ALTER TABLE jobs ADD COLUMN {col} {typ}")
 
-    def upsert(self, job, score: int, matched: list, region=None, rank=None) -> bool:
-        """Insert a job; returns True if it was new. Existing rows only get score/region/description refreshed."""
+    def upsert(self, job, score: int, matched: list, region=None, rank=None, visa="") -> bool:
+        """Insert a job; returns True if it was new. Existing rows get score/region/description/visa refreshed."""
         desc = f"{job.title}\n{' '.join(job.tags)}\n{job.description}"[:8000]
         cur = self.db.execute(
             "INSERT OR IGNORE INTO jobs (id, source, title, company, location, url, posted, score, matched,"
-            " found_at, region, region_rank, description) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            " found_at, region, region_rank, description, visa) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (job.id, job.source, job.title, job.company, job.location, job.url, job.posted,
-             score, ", ".join(matched), datetime.now().isoformat(timespec="seconds"), region, rank, desc))
+             score, ", ".join(matched), datetime.now().isoformat(timespec="seconds"), region, rank, desc, visa))
         if cur.rowcount == 0:
-            self.db.execute("UPDATE jobs SET score=?, matched=?, region=?, region_rank=?, description=? WHERE id=?",
-                            (score, ", ".join(matched), region, rank, desc, job.id))
+            self.db.execute("UPDATE jobs SET score=?, matched=?, region=?, region_rank=?, description=?, visa=?"
+                            " WHERE id=?", (score, ", ".join(matched), region, rank, desc, visa, job.id))
         self.db.commit()
         return cur.rowcount == 1
+
+    def forget_new(self, job_id: str):
+        """Remove a job you haven't acted on (e.g. it now fails your filters)."""
+        self.db.execute("DELETE FROM jobs WHERE id=? AND status='new'", (job_id,))
+        self.db.commit()
 
     def prune_unplaced(self) -> int:
         """Drop untouched jobs that don't belong to any of your regions (e.g. found before regions were set)."""
@@ -47,9 +52,11 @@ class Tracker:
         self.db.commit()
         return n
 
-    def list(self, status=None, min_score=0, limit=50, region=None):
-        """Your region priority first, then best score."""
+    def list(self, status=None, min_score=0, limit=50, region=None, visa=False):
+        """Your region priority first, then best score. visa=True: only jobs offering sponsorship/relocation."""
         sql, args = "SELECT * FROM jobs WHERE score >= ?", [min_score]
+        if visa:
+            sql += " AND visa IN ('visa', 'relocation', 'visa+relocation', 'open')"
         if status:
             sql += " AND status = ?"
             args.append(status)

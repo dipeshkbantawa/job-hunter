@@ -49,6 +49,7 @@ search:
     - Dubai
     - Singapore
     - Nepal
+  drop_no_sponsorship: true    # drop on-site jobs abroad whose ad says it won't sponsor a visa
   max_age_days: 14
   min_score: 30
   sources: [remotive, jobicy, remoteok, arbeitnow, himalayas, weworkremotely, greenhouse, lever]

@@ -76,6 +76,46 @@ def passes(job, search: dict) -> bool:
     return relevant(job, search.get("keywords") or [])
 
 
+_NEG = r"(?:no|not|unable to|cannot|can't|does not|do not|will not|won't|is not|isn't|are not)"
+VISA_NO = re.compile(
+    rf"{_NEG}\s+(?:\w+\s+){{0,3}}(?:offer\s+|provide\s+)?(?:visa\s+|work\s+permit\s+)?sponsor"
+    rf"|{_NEG}\s+(?:\w+\s+){{0,2}}(?:visa|immigration|relocation)\s+(?:assistance|support|sponsorship|help)"
+    r"|without\s+(?:\w+\s+)?sponsorship"
+    r"|(?:not\s+)?require\s+(?:\w+\s+){0,2}sponsorship"
+    r"|(?:must|need to)\s+(?:already\s+)?(?:have|hold)\s+(?:the\s+|a\s+)?(?:current\s+)?"
+    r"(?:right to work|work authori[sz]ation|valid work)"
+    r"|relocation\s+(?:is\s+)?not\s+(?:\w+\s+)?(?:provided|offered|available|supported)", re.I)
+VISA_YES = re.compile(
+    r"visa\s+sponsorship\s+(?:is\s+)?(?:available|provided|offered|possible|support)"
+    r"|(?:we|will|can|able to|happy to|willing to)\s+(?:\w+\s+){0,2}sponsor"
+    r"|sponsor(?:ship)?\s+(?:for|of)\s+(?:a\s+|an\s+|your\s+)?(?:work\s+|employment\s+)?(?:visa|permit|pass)"
+    r"|(?:employment\s+pass|work\s+visa|work\s+permit)\s+(?:sponsorship|support|assistance)"
+    r"|(?:help|assist|support)\w*\s+(?:you\s+)?with\s+(?:your\s+)?(?:visa|work permit|immigration)", re.I)
+RELOC_YES = re.compile(
+    r"relocation\s+(?:support|assistance|package|allowance|bonus|benefits?|help)"
+    r"|(?:full|paid|generous)\s+relocation"
+    r"|relocation\s+(?:\w+\s+){0,5}(?:will be|is|are)\s+(?:\w+\s+)?(?:provided|offered|available|covered)"
+    r"|(?:help|assist|support)\w*\s+(?:you\s+)?(?:with\s+)?(?:your\s+)?relocat"
+    r"|facilitat\w*\s+(?:\w+\s+){0,2}relocation", re.I)
+
+
+OPEN_INTL = re.compile(  # accepts people moving in, without promising support
+    r"willing to relocate|open to relocation|relocat\w* (?:candidates|applicants)|expatriate"
+    r"|international (?:candidates|applicants)|candidates from (?:abroad|overseas|any country)", re.I)
+
+
+def visa_status(job) -> str:
+    """'visa+relocation' / 'visa' / 'relocation' when the ad offers it, 'open' when it accepts people relocating,
+    'no' when it rules sponsorship out, '' if the ad is silent."""
+    text = re.sub(r"\s+", " ", job.description.replace("\xa0", " "))
+    if VISA_NO.search(text):
+        return "no"
+    visa, reloc = bool(VISA_YES.search(text)), bool(RELOC_YES.search(text))
+    if visa or reloc:
+        return "visa+relocation" if visa and reloc else "visa" if visa else "relocation"
+    return "open" if OPEN_INTL.search(text) else ""
+
+
 def score(job, search: dict, cv_tokens: set):
     """0-100: title fit (40) + listed skills found (40) + overlap with CV vocabulary (20)."""
     text = job.text

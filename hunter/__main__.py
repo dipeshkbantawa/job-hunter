@@ -47,9 +47,12 @@ def print_rows(rows):
     if not rows:
         print("  (nothing)")
         return
-    print(f"  {'ID':<9}{'SCORE':>5}  {'REGION':<12} {'STATUS':<9} {'POSTED':<11} JOB")
+    visa_tag = {"visa+relocation": "VISA+REL", "visa": "VISA", "relocation": "RELOC", "open": "OPEN-INTL",
+                "no": "no-visa"}
+    print(f"  {'ID':<9}{'SCORE':>5}  {'REGION':<12} {'VISA':<9} {'STATUS':<9} {'POSTED':<11} JOB")
     for r in rows:
-        print(f"  {r['id'][:8]:<9}{r['score']:>5}  {(r['region'] or '-')[:12]:<12} {r['status']:<9} "
+        print(f"  {r['id'][:8]:<9}{r['score']:>5}  {(r['region'] or '-')[:12]:<12} "
+              f"{visa_tag.get(r['visa'] or '', ''):<9} {r['status']:<9} "
               f"{r['posted'] or '':<11} {r['title'][:55]} @ {r['company'][:28]}")
 
 
@@ -59,7 +62,7 @@ def cmd_search(cfg, tracker, args):
     jobs = sources.collect(s)
     cv = matcher.load_cv_text(cfg["_root"] / cfg["profile"]["resume"]) if cfg["profile"].get("resume") else ""
     cv_tokens = matcher.tokens(cv)
-    kept = new = 0
+    kept = new = offers = refused = 0
     per_region = {}
     for job in jobs:
         if not matcher.passes(job, s):
@@ -68,8 +71,14 @@ def cmd_search(cfg, tracker, args):
         if sc < s.get("min_score", 0):
             continue
         rank, region = matcher.match_region(job, s) or (None, None)
+        visa = matcher.visa_status(job)
+        if visa == "no" and region != "Remote" and s.get("drop_no_sponsorship", True):
+            refused += 1   # on-site abroad but the ad rules out sponsoring you
+            tracker.forget_new(job.id)
+            continue
+        offers += visa not in ("", "no")
         kept += 1
-        new += tracker.upsert(job, sc, matched, region, rank)
+        new += tracker.upsert(job, sc, matched, region, rank, visa)
         per_region[region] = per_region.get(region, 0) + 1
     if s.get("regions"):
         tracker.prune_unplaced()
@@ -77,6 +86,7 @@ def cmd_search(cfg, tracker, args):
     for name in s.get("regions") or []:
         label = links.region(name)["label"]
         print(f"  {label:<15} {per_region.get(label, 0)}")
+    print(f"  visa/relocation offered: {offers}   dropped (ad says no sponsorship): {refused}")
     print("\nTop unapplied matches (region priority, then score):")
     rows = tracker.list("new", s.get("min_score", 0), args.limit)
     print_rows(rows)
@@ -102,7 +112,7 @@ def cmd_links(cfg, tracker, args):
 
 
 def cmd_list(cfg, tracker, args):
-    print_rows(tracker.list(args.status, args.min_score, args.limit, args.region))
+    print_rows(tracker.list(args.status, args.min_score, args.limit, args.region, args.visa))
 
 
 def cmd_open(cfg, tracker, args):
@@ -120,8 +130,8 @@ def cmd_apply(cfg, tracker, args):
     if args.ids:
         rows = [tracker.get(i) for i in args.ids]
     else:
-        rows = (tracker.list("saved", 0, args.top, args.region)
-                + tracker.list("new", 0, args.top, args.region))[: args.top]
+        rows = (tracker.list("saved", 0, args.top, args.region, args.visa)
+                + tracker.list("new", 0, args.top, args.region, args.visa))[: args.top]
     if not rows:
         raise SystemExit("Nothing to apply to. Run `python -m hunter search` first.")
     resume = file_from(cfg, cfg["profile"].get("resume"))
@@ -197,6 +207,7 @@ def main():
     p = sub.add_parser("list", help="list tracked jobs")
     p.add_argument("--status", choices=STATUSES, default="new")
     p.add_argument("--region", help="e.g. Remote, Australia, Singapore")
+    p.add_argument("--visa", action="store_true", help="only jobs offering visa sponsorship / relocation")
     p.add_argument("--min-score", type=int, default=0)
     p.add_argument("--limit", type=int, default=50)
     p.set_defaults(fn=cmd_list)
@@ -215,6 +226,7 @@ def main():
     p.add_argument("ids", nargs="*")
     p.add_argument("--top", type=int, default=10)
     p.add_argument("--region", help="only jobs in this region")
+    p.add_argument("--visa", action="store_true", help="only jobs offering visa sponsorship / relocation")
     p.set_defaults(fn=cmd_apply)
 
     p = sub.add_parser("update-cv", help="attach your latest CV on each career site")

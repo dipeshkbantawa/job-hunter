@@ -67,6 +67,26 @@ def region(name: str) -> dict:
                                 "match": [key], "local": {}}
 
 
+def visa_links(keywords: list, name: str) -> dict:
+    """Searches restricted to ads that mention visa sponsorship / relocation in one country."""
+    r = region(name)
+    place = r["linkedin"]
+    anyof = " OR ".join(f'"{k}"' for k in keywords)
+    boolean = f'({anyof}) AND ("visa sponsorship" OR "relocation")'
+    links = {"LinkedIn": f"https://www.linkedin.com/jobs/search/?keywords={quote_plus(boolean)}"
+                         f"&location={quote_plus(place)}&f_TPR=r2592000"}
+    if r["indeed"]:
+        links["Indeed"] = (f"https://{r['indeed']}/jobs?q={quote_plus(f'({anyof}) visa sponsorship')}"
+                           + ("&l=Dubai" if r["indeed"].startswith("ae.") else ""))
+    links["Google"] = ("https://www.google.com/search?q="
+                       + quote_plus(f'"visa sponsorship" ({anyof}) {place} jobs') + "&tbs=qdr:m")
+    if "seek" in " ".join(r["local"]).lower():
+        country = "All-Australia" if "au." in str(r["local"]) else "All-New-Zealand"
+        host = "au.seek.com" if country == "All-Australia" else "nz.seek.com"
+        links["Seek"] = f"https://{host}/visa-sponsorship-jobs/in-{country}"
+    return links
+
+
 def company_pages(cfg: dict, name: str) -> list:
     """Company career pages from config.yaml `company_careers`, keyed by region name or label."""
     pages = cfg.get("company_careers") or {}
