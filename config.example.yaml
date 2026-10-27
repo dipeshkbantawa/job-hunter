@@ -94,6 +94,8 @@ career_sites:                  # opened by `python -m hunter update-cv` and list
     url: https://himalayas.app/profile
   - name: Seek (Australia + NZ)
     url: https://au.seek.com/profile/me
+  - name: SEEK Pass (verified credentials for Seek)
+    url: https://seekpass.co/
   - name: Bayt (Dubai / UAE)
     url: https://www.bayt.com/en/myworkspace/
   - name: Naukrigulf (Dubai / UAE)
@@ -104,6 +106,10 @@ career_sites:                  # opened by `python -m hunter update-cv` and list
     url: https://sg.jobstreet.com/profile
   - name: Wanted (South Korea)
     url: https://www.wanted.co.kr/cv/list
+  - name: Kowork (South Korea, jobs for foreigners)
+    url: https://kowork.kr/en
+  - name: JobKorea (South Korea)
+    url: https://www.jobkorea.co.kr/
   - name: Merojob (Nepal)
     url: https://merojob.com/
   - name: Kumarijob (Nepal)

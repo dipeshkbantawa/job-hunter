@@ -32,7 +32,9 @@ REGIONS = {
         "jobicy": "south-korea",
         "match": ["south korea", "korea", "seoul", "busan", "pangyo", "seongnam", "incheon"],
         "local": {"JobKorea": "https://www.jobkorea.co.kr/Search/?stext={q}",
-                  "Wanted": "https://www.wanted.co.kr/search?query={q}"},
+                  "Wanted": "https://www.wanted.co.kr/search?query={q}",
+                  # Kowork (jobs for foreigners, E-7 visa sponsors) has no keyword URL, so go through Google
+                  "Kowork": "https://www.google.com/search?q=site%3Akowork.kr+%22{q}%22"},
     },
     "dubai": {
         "label": "Dubai / UAE", "linkedin": "Dubai, United Arab Emirates", "indeed": "ae.indeed.com",

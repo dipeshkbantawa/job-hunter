@@ -4,6 +4,8 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 `hunter/__init__.py` (`python -m hunter --version`). Each release is tagged `vX.Y.Z` in git.
 
 ## [Unreleased]
+### Added
+- Kowork search links for South Korea; Kowork, JobKorea and SEEK Pass in the career sites list.
 
 ## [0.5.0] - 2026-10-27
 ### Added
