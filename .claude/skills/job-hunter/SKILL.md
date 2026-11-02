@@ -21,6 +21,7 @@ Run Python as `.venv\Scripts\python.exe -m hunter <command>` from the repo root.
 | `followup` | `modes/followup.md` |
 | `interview <id>` | `modes/interview.md` |
 | `scan` / "what's new today" | `modes/scan.md` |
+| `batch` / "prefill this week's best jobs" | `modes/batch.md` |
 | `compare <id> <id> ...` | `modes/compare.md` |
 | `patterns` / `stats` / "why am I not getting replies" | `modes/patterns.md` |
 | `cv` / "update my CV" / "I finished a certification" | `modes/cv-update.md` |

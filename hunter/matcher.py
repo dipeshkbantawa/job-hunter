@@ -57,6 +57,9 @@ def match_region(job, search: dict):
     return None
 
 
+COMPANY_SOURCES = ("greenhouse", "lever", "ashby", "smartrecruiters", "careers")
+
+
 def passes(job, search: dict) -> bool:
     text = job.text + " " + job.location.lower()
     if search.get("regions"):
@@ -70,8 +73,10 @@ def passes(job, search: dict) -> bool:
     if must and not any(x.lower() in text for x in must):
         return False
     max_age = search.get("max_age_days")
-    # company boards (greenhouse/lever) only list open roles, so an older post date is still live
-    if max_age and job.source not in ("greenhouse", "lever") and job.posted and job.posted < (date.today() - timedelta(days=max_age)).isoformat():
+    # company boards only list open roles, so an older post date is still live, unless board_max_age_days is set
+    if job.source in COMPANY_SOURCES:
+        max_age = search.get("board_max_age_days")
+    if max_age and job.posted and job.posted < (date.today() - timedelta(days=max_age)).isoformat():
         return False
     return relevant(job, search.get("keywords") or [])
 

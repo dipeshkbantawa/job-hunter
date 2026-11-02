@@ -51,8 +51,12 @@ search:
     - Nepal
   drop_no_sponsorship: true    # drop on-site jobs abroad whose ad says it won't sponsor a visa
   max_age_days: 14
+  # board_max_age_days: 7      # also age-limit company boards; `search --days 7` sets both for one run
   min_score: 30
-  sources: [remotive, jobicy, remoteok, arbeitnow, himalayas, weworkremotely, greenhouse, lever]
+  sources: [remotive, jobicy, remoteok, arbeitnow, himalayas, weworkremotely, greenhouse, lever, ashby, smartrecruiters, careers]
+  # companies.yaml already lists about 100 company boards; these lists add your own.
+  # ashby_companies: []        # slug from jobs.ashbyhq.com/<slug>
+  # smartrecruiters_companies: []   # slug from jobs.smartrecruiters.com/<slug>
   greenhouse_boards:           # company slug from boards.greenhouse.io/<slug>
     - coupang                  # South Korea
     - careem                   # Dubai
@@ -66,6 +70,10 @@ search:
     api_key: ""
     cx: ""
 
+apply:                         # `hunter apply`: you still review and click Submit on every form
+  daily_limit: 50              # stops the queue at this many applications a day
+  min_score: 50                # the queue skips weaker matches (ids you name are always opened)
+
 browser:
   channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
 
@@ -73,7 +81,7 @@ blacklist:                     # companies you won't apply to (skipped by search
   # - company: Example Corp
   #   reason: bad interview experience
 
-company_careers:               # employers you want to watch; shown under their region in the digest
+company_careers:               # employers to watch: scanned by `search` and shown under their region in the digest
   Dubai:
     - name: du
       url: https://www.du.ae/about-us/careers

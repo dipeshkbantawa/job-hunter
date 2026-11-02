@@ -98,8 +98,13 @@ def channel(cfg):
 
 def cmd_search(cfg, tracker, args):
     s = cfg["search"]
+    if args.days:  # only fresh postings, company boards included
+        s["max_age_days"] = s["board_max_age_days"] = args.days
     print("Fetching jobs...")
     jobs = sources.collect(s)
+    if not s.get("sources") or "careers" in s["sources"]:
+        from .careers import scan_all
+        jobs += scan_all(cfg, s.get("keywords") or [], tracker.has)
     cv_tokens = cv_tokens_for(cfg)
     kept = new = offers = refused = 0
     per_region = {}
@@ -177,16 +182,22 @@ def cmd_mark(cfg, tracker, args):
 
 def cmd_apply(cfg, tracker, args):
     from .browser import apply_queue
+    settings = cfg.get("apply") or {}
+    limit = settings.get("daily_limit", 50)
+    done = tracker.applied_today()
+    if limit and done >= limit:
+        raise SystemExit(f"You have already applied to {done} jobs today (apply.daily_limit is {limit}).")
     if args.ids:
         rows = [tracker.get(i) for i in args.ids]
     else:
-        rows = (tracker.list("saved", 0, args.top, args.region, args.visa)
-                + tracker.list("new", 0, args.top, args.region, args.visa))[: args.top]
+        least = settings.get("min_score", 0) if args.min_score is None else args.min_score
+        rows = (tracker.list("saved", least, args.top, args.region, args.visa)
+                + tracker.list("new", least, args.top, args.region, args.visa))[: args.top]
     if not rows:
         raise SystemExit("Nothing to apply to. Run `python -m hunter search` first.")
     resume = file_from(cfg, cfg["profile"].get("resume"))
     cover = file_from(cfg, cfg["profile"].get("cover_letter"))
-    apply_queue(cfg, rows, tracker, resume, cover)
+    apply_queue(cfg, rows, tracker, resume, cover, job_dir, limit)
 
 
 def cmd_update_cv(cfg, tracker, args):
@@ -516,6 +527,7 @@ def main():
     p = sub.add_parser("search", help="fetch, filter and score jobs")
     p.add_argument("--limit", type=int, default=25)
     p.add_argument("--no-open", action="store_true", help="don't open the HTML digest")
+    p.add_argument("--days", type=int, help="only postings from the last N days, company boards included")
     p.set_defaults(fn=cmd_search)
 
     p = sub.add_parser("links", help="print LinkedIn/Indeed/Google search URLs")
@@ -547,6 +559,7 @@ def main():
     p.add_argument("--top", type=int, default=10)
     p.add_argument("--region", help="only jobs in this region")
     p.add_argument("--visa", action="store_true", help="only jobs offering visa sponsorship / relocation")
+    p.add_argument("--min-score", type=int, help="only jobs scoring at least this (default: apply.min_score)")
     p.set_defaults(fn=cmd_apply)
 
     p = sub.add_parser("update-cv", help="attach your latest CV on each career site")

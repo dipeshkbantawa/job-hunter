@@ -5,6 +5,13 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 
 ## [Unreleased]
 ### Added
+- `companies.yaml`: about 100 verified company boards searched through their public APIs. New Ashby and SmartRecruiters
+  sources; add your own slugs in `config.yaml`.
+- `search` now scans the `company_careers` pages for matching roles (`hunter/careers.py`).
+- `search --days N`: only fresh postings, company boards included. Greenhouse dates now use the first-published date.
+- `apply` fills long questions from the job's `answers.md`, lists the fields left empty and saves them to `questions.md`.
+- `apply --min-score` and the `apply:` settings (`daily_limit`, default 50; `min_score`).
+- `/job-hunter batch` mode: shortlist this week's jobs, draft answers, prefill the forms.
 - SDOC (sdoc.gov.np/vacancies, Government of Nepal) as a Nepal company career page in `config.example.yaml`.
 - Kowork search links for South Korea; Kowork, JobKorea and SEEK Pass in the career sites list.
 - South Korea jobs show whether the ad confirms foreign workers are hired (E-7 sponsorship, 외국인 지원 가능) and
@@ -16,6 +23,10 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
   tailored CV as a new Overleaf project (free plan); `hunter cv import <pdf> --job <id>` re-runs the ATS and fact
   checks on the PDF downloaded from Overleaf and links it for `apply`.
 - Evaluation reports start with a match summary: match %, ATS keyword %, strengths, weaknesses, improvement tips.
+
+### Changed
+- `apply` no longer autofills on LinkedIn, Indeed or Glassdoor, whose terms forbid automation: those forms are filled by hand.
+- Autofill no longer puts contact details into long-question text boxes.
 
 ## [0.5.0] - 2026-10-27
 ### Added

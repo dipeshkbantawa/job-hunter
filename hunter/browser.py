@@ -3,10 +3,14 @@
 - Uses a persistent browser profile, so you log in to LinkedIn/Indeed/etc. ONCE by hand
   and the session is reused next time.
 - Autofills common application fields from your profile and attaches your CV.
+- Fills long questions ("Why this company?") from the job's answers.md, drafted and reviewed beforehand.
+- Lists what it left empty, so you can answer it before submitting.
 - NEVER clicks Submit/Apply and never touches CAPTCHAs: you review and submit yourself.
+- Does not autofill on LinkedIn, Indeed or Glassdoor, whose terms forbid automation: those you do by hand.
 """
 import re
 from pathlib import Path
+from urllib.parse import urlparse
 
 FIELD_RULES = [  # first match wins, so specific rules come before generic ones
     ("first_name", r"first.?name|given.?name|\bfname\b"),
@@ -34,6 +38,47 @@ DESCRIBE_JS = """el => {
 }"""
 
 
+LABEL_JS = """el => {
+  const clean = t => (t || '').replace(/\\s+/g, ' ').trim();
+  if (el.labels && el.labels.length) return clean(el.labels[0].innerText);
+  const prev = el.previousElementSibling || (el.parentElement && el.parentElement.previousElementSibling);
+  return clean(el.getAttribute('aria-label') || (prev && prev.innerText) || el.placeholder || el.name);
+}"""
+
+HAND_ONLY_SITES = re.compile(r"(^|\.)(linkedin|indeed|glassdoor)\.", re.I)
+WORD = re.compile(r"[a-z0-9]{3,}")
+MIN_QUESTION_MATCH = 0.7   # share of a question's words that must appear in the field's label
+
+
+def hand_only(url: str) -> bool:
+    return bool(HAND_ONLY_SITES.search(urlparse(url).netloc))
+
+
+def parse_answers(path: Path) -> dict:
+    """answers.md: each '## question' heading followed by its answer. Unfinished answers (TODO) are left out."""
+    if not path or not path.exists():
+        return {}
+    answers = {}
+    for chunk in re.split(r"^## +", path.read_text(encoding="utf-8"), flags=re.M)[1:]:
+        question, _, answer = chunk.partition("\n")
+        answer = answer.strip()
+        if answer and "TODO" not in answer:
+            answers[question.strip()] = answer
+    return answers
+
+
+def match_answer(desc: str, answers: dict) -> str:
+    """The question whose words best fit this field's label, or '' if none fits well enough."""
+    label = set(WORD.findall(desc.lower()))
+    best, best_share = "", 0
+    for question in answers:
+        words = set(WORD.findall(question.lower()))
+        share = len(words & label) / len(words) if words else 0
+        if share > best_share:
+            best, best_share = question, share
+    return best if best_share >= MIN_QUESTION_MATCH else ""
+
+
 def _profile_values(profile: dict) -> dict:
     v = {k: str(val) for k, val in profile.items() if val not in (None, "")}
     if "full_name" not in v and ("first_name" in v or "last_name" in v):
@@ -41,9 +86,32 @@ def _profile_values(profile: dict) -> dict:
     return v
 
 
-def autofill(page, profile: dict, resume: Path = None, cover: Path = None) -> int:
+def unfilled(page) -> list:
+    """Labels of visible fields still empty on the page, for the candidate to answer."""
+    labels = []
+    for frame in page.frames:
+        try:
+            fields = frame.locator("input, textarea, select").all()
+        except Exception:
+            continue
+        for el in fields:
+            try:
+                kind = (el.get_attribute("type") or "text").lower()
+                if kind in ("hidden", "submit", "button", "checkbox", "radio", "file", "search", "password") \
+                        or not el.is_visible() or el.input_value():
+                    continue
+                label = el.evaluate(LABEL_JS)
+                if label and label not in labels:
+                    labels.append(label)
+            except Exception:
+                continue
+    return labels
+
+
+def autofill(page, profile: dict, resume: Path = None, cover: Path = None, answers: dict = None) -> int:
     """Fill empty text fields and file inputs across all frames. Returns number of fields touched."""
     values = _profile_values(profile)
+    answers = dict(answers or {})
     filled = 0
     for frame in page.frames:
         try:
@@ -61,6 +129,13 @@ def autofill(page, profile: dict, resume: Path = None, cover: Path = None) -> in
                         or not el.is_visible() or not el.is_editable() or el.input_value():
                     continue
                 desc = el.evaluate(DESCRIBE_JS)
+                question = match_answer(desc, answers)
+                if question:
+                    el.fill(answers.pop(question))
+                    filled += 1
+                    continue
+                if el.evaluate("e => e.tagName") == "TEXTAREA":
+                    continue  # a long question never gets a contact detail
                 for key, rx in FIELD_RULES:
                     if re.search(rx, desc) and key in values:
                         el.fill(values[key])
@@ -97,13 +172,16 @@ def _active_page(ctx):
     return ctx.pages[-1]
 
 
-def apply_queue(cfg, rows, tracker, resume: Path, cover: Path = None):
+def apply_queue(cfg, rows, tracker, resume: Path, cover: Path = None, job_dir=None, daily_limit: int = 0):
     from playwright.sync_api import sync_playwright
     profile = cfg.get("profile") or {}
     with sync_playwright() as p:
         ctx = _context(p, cfg)
         page = ctx.pages[0] if ctx.pages else ctx.new_page()
         for i, row in enumerate(rows, 1):
+            if daily_limit and tracker.applied_today() >= daily_limit:
+                print(f"\nDaily limit reached ({daily_limit} applications). Stopping here.")
+                break
             print(f"\n[{i}/{len(rows)}] {row['title']} @ {row['company']}  (score {row['score']})\n    {row['url']}")
             try:
                 page.goto(row["url"], wait_until="domcontentloaded", timeout=60000)
@@ -116,12 +194,29 @@ def apply_queue(cfg, rows, tracker, resume: Path, cover: Path = None):
             use_cv = job_cv if job_cv and job_cv.exists() else resume
             use_cover = job_cover if job_cover and job_cover.exists() else cover
             print(f"    CV: {use_cv.name if use_cv else '-'}" + (f"   cover letter: {use_cover.name}" if use_cover else ""))
+            folder = job_dir(cfg, row) if job_dir else None
+            answers = parse_answers(folder / "answers.md") if folder else {}
+            if answers:
+                print(f"    {len(answers)} drafted answer(s) in answers.md")
             print("    Click 'Apply' / log in if needed, then use the prompt below. I never submit for you.")
             while True:
                 choice = input("    [Enter]=autofill  a=mark applied  s=skip  l=later  q=quit > ").strip().lower()
                 if choice == "":
-                    n = autofill(_active_page(ctx), profile, use_cv, use_cover)
+                    current = _active_page(ctx)
+                    if hand_only(current.url):
+                        print("    LinkedIn, Indeed and Glassdoor don't allow automation: fill this one by hand.")
+                        continue
+                    if folder:  # edits made while the browser is open count
+                        answers = parse_answers(folder / "answers.md")
+                    n = autofill(current, profile, use_cv, use_cover, answers)
                     print(f"    filled {n} field(s). Review every answer, complete the rest, then SUBMIT yourself.")
+                    empty = unfilled(current)
+                    if empty:
+                        print("    Still empty:\n      - " + "\n      - ".join(empty))
+                        if folder:
+                            (folder / "questions.md").write_text("\n".join(f"- {q}" for q in empty) + "\n", encoding="utf-8")
+                            print(f"    Saved to questions.md. For long questions, run `/job-hunter answers {row['id'][:8]}` "
+                                  "in Claude Code, then press Enter again.")
                 elif choice == "a":
                     tracker.set_status(row["id"], "applied")
                     print("    marked applied")

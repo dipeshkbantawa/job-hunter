@@ -75,6 +75,13 @@ class Tracker:
         args.append(limit)
         return self.db.execute(sql, args).fetchall()
 
+    def has(self, job_id: str) -> bool:
+        return self.db.execute("SELECT 1 FROM jobs WHERE id=?", (job_id,)).fetchone() is not None
+
+    def applied_today(self) -> int:
+        today = datetime.now().date().isoformat()
+        return self.db.execute("SELECT COUNT(*) FROM jobs WHERE applied_at LIKE ?", (today + "%",)).fetchone()[0]
+
     def get(self, id_prefix: str):
         rows = self.db.execute("SELECT * FROM jobs WHERE id LIKE ?", (id_prefix + "%",)).fetchall()
         if len(rows) != 1:

@@ -8,18 +8,22 @@ import html
 import re
 import sys
 import xml.etree.ElementTree as ET
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from functools import lru_cache
+from pathlib import Path
 from urllib.parse import urlparse
 
 import requests
+import yaml
 
 from .links import region
 
 HEADERS = {"User-Agent": "Mozilla/5.0 (personal job-hunter script)"}
 TIMEOUT = 25
+COMPANIES_FILE = Path(__file__).resolve().parent.parent / "companies.yaml"
 
 
 @dataclass
@@ -186,7 +190,8 @@ def greenhouse(board):
     for j in data.get("jobs", []):
         loc = (j.get("location") or {}).get("name", "")
         yield Job("greenhouse", j.get("title", ""), board, j.get("absolute_url", ""), loc,
-                  to_date(j.get("updated_at")), [], strip_html(j.get("content")), _is_remote(loc, j.get("title")))
+                  to_date(j.get("first_published") or j.get("updated_at")), [], strip_html(j.get("content")),
+                  _is_remote(loc, j.get("title")))
 
 
 def lever(company):
@@ -196,6 +201,38 @@ def lever(company):
         yield Job("lever", j.get("text", ""), company, j.get("hostedUrl", ""), loc,
                   to_date(j.get("createdAt")), [cats.get("team", ""), cats.get("commitment", "")],
                   j.get("descriptionPlain", ""), _is_remote(loc, j.get("workplaceType")))
+
+
+def ashby(company):
+    data = _get(f"https://api.ashbyhq.com/posting-api/job-board/{company}").json()
+    for j in data.get("jobs", []):
+        if j.get("isListed") is False:
+            continue
+        others = [o.get("location", "") for o in j.get("secondaryLocations") or []]
+        loc = ", ".join(filter(None, [j.get("location", "")] + others))
+        yield Job("ashby", j.get("title", "").strip(), company, j.get("jobUrl", ""), loc, to_date(j.get("publishedAt")),
+                  [j.get("department", ""), j.get("team", "")], j.get("descriptionPlain", ""),
+                  bool(j.get("isRemote")) or _is_remote(loc))
+
+
+def smartrecruiters(company, keywords=()):
+    """The list has no descriptions and big employers post thousands of jobs, so search by keyword and
+    fetch the details of the hits only."""
+    base = f"https://api.smartrecruiters.com/v1/companies/{company}/postings"
+    seen = {}
+    for kw in keywords:
+        for j in _get(base, {"q": kw, "limit": 100}).json().get("content", []):
+            seen[j["id"]] = j
+    for jid, j in seen.items():
+        d = _get(f"{base}/{jid}").json()
+        sections = (d.get("jobAd") or {}).get("sections") or {}
+        text = " ".join(strip_html((sections.get(k) or {}).get("text"))
+                        for k in ("jobDescription", "qualifications", "additionalInformation"))
+        where = j.get("location") or {}
+        loc = where.get("fullLocation") or where.get("city") or ""
+        yield Job("smartrecruiters", j.get("name", ""), company,
+                  d.get("postingUrl") or f"https://jobs.smartrecruiters.com/{company}/{jid}", loc,
+                  to_date(j.get("releasedDate")), [], text, bool(where.get("remote")) or _is_remote(loc))
 
 
 KEYWORD_SOURCES = {"remotive": remotive, "jobicy": jobicy}
@@ -211,9 +248,25 @@ def _safe(label, gen):
         return []
 
 
+def company_boards(search: dict) -> dict:
+    """{ats: [slugs]} from companies.yaml plus the lists in config.yaml."""
+    listed = yaml.safe_load(COMPANIES_FILE.read_text(encoding="utf-8")) if COMPANIES_FILE.exists() else {}
+    own = {"greenhouse": "greenhouse_boards", "lever": "lever_companies", "ashby": "ashby_companies",
+           "smartrecruiters": "smartrecruiters_companies"}
+    return {ats: list(dict.fromkeys((listed or {}).get(ats, []) + (search.get(key) or [])))
+            for ats, key in own.items()}
+
+
+def _board_jobs(ats, slug, keywords):
+    if ats == "smartrecruiters":
+        return _safe(f"{ats}/{slug}", smartrecruiters(slug, keywords))
+    return _safe(f"{ats}/{slug}", {"greenhouse": greenhouse, "lever": lever, "ashby": ashby}[ats](slug))
+
+
 def collect(search: dict) -> list:
     keywords = search.get("keywords") or []
-    enabled = set(search.get("sources") or list(KEYWORD_SOURCES) + list(FEED_SOURCES) + ["greenhouse", "lever"])
+    boards = company_boards(search)
+    enabled = set(search.get("sources") or list(KEYWORD_SOURCES) + list(FEED_SOURCES) + list(boards))
     jobs = []
 
     for name, fn in KEYWORD_SOURCES.items():
@@ -236,15 +289,11 @@ def collect(search: dict) -> list:
             print(f"  {name:<15} {'(full feed)':<30} {len(found)}")
             jobs += found
 
-    if "greenhouse" in enabled:
-        for board in search.get("greenhouse_boards") or []:
-            found = _safe(f"greenhouse/{board}", greenhouse(board))
-            print(f"  {'greenhouse':<15} {board:<30} {len(found)}")
-            jobs += found
-    if "lever" in enabled:
-        for company in search.get("lever_companies") or []:
-            found = _safe(f"lever/{company}", lever(company))
-            print(f"  {'lever':<15} {company:<30} {len(found)}")
+    for ats, slugs in boards.items():
+        if ats in enabled and slugs:
+            with ThreadPoolExecutor(8) as pool:
+                found = [j for batch in pool.map(lambda s: _board_jobs(ats, s, keywords), slugs) for j in batch]
+            print(f"  {ats:<15} {str(len(slugs)) + ' companies':<30} {len(found)}")
             jobs += found
 
     cse = search.get("google_cse") or {}

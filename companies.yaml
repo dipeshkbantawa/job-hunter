@@ -1,0 +1,17 @@
+# Company job boards searched by `hunter search`, through each ATS's public API (no scraping, no logins).
+# Every slug here answered with open jobs when it was added. Add your own in config.yaml (search.greenhouse_boards,
+# lever_companies, ashby_companies, smartrecruiters_companies), or here. A slug that stops working only prints a warning.
+greenhouse:
+  [coupang, careem, sendbird, canonical, gitlab, stripe, cloudflare, datadog, elastic, mongodb, okta, twilio, dropbox,
+   pagerduty, fastly, vercel, airtable, figma, discord, reddit, coinbase, binance, ripple, consensys, remote, gusto,
+   cultureamp, pushpay, deliveroo, tamara, wise, thunes, xendit, thoughtworks, tailscale, newrelic, sumologic, zscaler,
+   rubrik, kaseya, bitwarden, lastpass, huntress, grafanalabs, netlify, planetscale, cockroachlabs, yugabyte,
+   databricks, krafton, daangn, moloco]
+lever:
+  [ninjavan, deputy, binance, palantir, spotify, wealthfront, jobandtalent, crypto, cred, tala, sysdig, outreach]
+ashby:
+  [ramp, notion, linear, openai, posthog, sentry, render, supabase, replit, semgrep, vanta, drata, 1password, cursor,
+   perplexity, runway, airwallex, zip, multiverse, lemonade, synthesia, elevenlabs, harvey, mercor, langchain, n8n,
+   hopper, oyster, ashby]
+smartrecruiters:
+  [Canva, Wise, Experian, ServiceNow]
