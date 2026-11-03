@@ -41,6 +41,7 @@ REGIONS = {
         "match": ["dubai", "uae", "united arab emirates", "abu dhabi", "sharjah"],
         "local": {"Bayt": "https://www.bayt.com/en/uae/jobs/{slug}-jobs-in-dubai/",
                   "Naukrigulf": "https://www.naukrigulf.com/{slug}-jobs-in-dubai",
+                  "Dubizzle": "https://dubai.dubizzle.com/jobs/search/?keyword={q}",
                   # GulfTalent has no keyword URL (its search is a POST form), so go through Google
                   "GulfTalent": "https://www.google.com/search?q=site%3Agulftalent.com+%22{q}%22+UAE"},
     },
