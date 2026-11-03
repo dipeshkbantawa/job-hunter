@@ -151,6 +151,7 @@ def send(cfg: dict, title: str, body: str, url: str):
 
 def run(cfg: dict, notify: bool = True) -> int:
     """Check every watch entry and return how many new notices were found."""
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")  # Nepali titles must not crash a redirected run
     state_path = cfg["_root"] / "data" / "watch.json"
     log_path = cfg["_root"] / "data" / "watch.log"
     state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
