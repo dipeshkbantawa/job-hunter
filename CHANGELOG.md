@@ -5,6 +5,8 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 
 ## [Unreleased]
 ### Added
+- `hunter watch`: checks employers' own vacancy pages, follows links from listing pages, tries fiscal-year addresses
+  such as Nepal Telecom's `/post/vacancy-notices-208384`, and sends a Windows notification (optional phone push) when a new notice appears.
 - `companies.yaml`: about 100 verified company boards searched through their public APIs. New Ashby and SmartRecruiters
   sources; add your own slugs in `config.yaml`.
 - `search` now scans the `company_careers` pages for matching roles (`hunter/careers.py`).

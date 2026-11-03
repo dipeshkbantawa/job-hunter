@@ -12,6 +12,7 @@
     python -m hunter cv build          # ATS-safe PDF from cv.yaml
     python -m hunter followups         # who to nudge today
     python -m hunter dashboard         # live tracker dashboard in your browser
+    python -m hunter watch             # notify me about new notices on employers' vacancy pages
 Evaluation, tailored CVs, cover letters and messages: open Claude Code here and use /job-hunter.
 """
 import argparse
@@ -135,6 +136,15 @@ def cmd_search(cfg, tracker, args):
     rows = tracker.list("new", s.get("min_score", 0), args.limit)
     print_rows(rows)
     cmd_digest(cfg, tracker, args)
+
+
+def cmd_watch(cfg, tracker, args):
+    from . import watch
+    if args.test_notify:
+        watch.send(cfg, "job-hunter test", "Vacancy notifications are working.", "https://www.ntc.net.np/post/new-career")
+        print("Test notification sent.")
+        return
+    watch.run(cfg, notify=not args.no_notify)
 
 
 def cmd_digest(cfg, tracker, args):
@@ -624,6 +634,11 @@ def main():
     p = sub.add_parser("followups", help="applications due a follow-up")
     p.add_argument("--done", metavar="ID", help="record that you sent a follow-up")
     p.set_defaults(fn=cmd_followups)
+
+    p = sub.add_parser("watch", help="check employers' vacancy pages and notify about new notices")
+    p.add_argument("--no-notify", action="store_true", help="print new notices without sending a notification")
+    p.add_argument("--test-notify", action="store_true", help="send a test notification and stop")
+    p.set_defaults(fn=cmd_watch)
 
     p = sub.add_parser("digest", help="rebuild data/digest.html from the tracker (no fetching)")
     p.add_argument("--no-open", action="store_true")

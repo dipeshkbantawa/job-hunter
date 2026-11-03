@@ -77,6 +77,27 @@ apply:                         # `hunter apply`: you still review and click Subm
 browser:
   channel: chrome              # use your installed Chrome ("msedge" for Edge, "" for bundled Chromium)
 
+watch:                         # `hunter watch`: notifies about new notices on employers' own vacancy pages
+  notify:
+    desktop: true              # Windows notification; the PC must be on and you must be logged in
+    ntfy_topic: ""             # optional phone push: install the ntfy app, subscribe to a hard-to-guess topic name
+  employers:
+    - name: Nepal Telecom
+      pages:                   # always read
+        - https://www.ntc.net.np/post/new-career
+      follow: true             # also read the posts these pages link to (its address changes from year to year)
+      url_templates:           # tried for last, this and next fiscal year: {fy} = 2083-84, {fy_long} = 2083-2084, {fy_compact} = 208384
+        - https://www.ntc.net.np/post/vacancy-{fy}
+        - https://www.ntc.net.np/post/fy{fy_long}
+        - https://www.ntc.net.np/post/vacancy-notices-{fy_compact}
+    - name: Nepal Telecom (collegenp)   # backup: a news site that often lists notices too
+      pages:
+        - https://www.collegenp.com/vacancy
+      match: nepal.telecom
+    - name: SDOC
+      pages:
+        - https://sdoc.gov.np/vacancies
+
 blacklist:                     # companies you won't apply to (skipped by search, refused by add)
   # - company: Example Corp
   #   reason: bad interview experience

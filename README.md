@@ -20,6 +20,7 @@ search / inbox / add  ->  live check  ->  evaluate (1-5)  ->  tailor CV + cover 
 |---|---|
 | **search** | Pulls jobs from public APIs: Remotive, Jobicy (including its per-country filter), RemoteOK, Arbeitnow, Himalayas, We Work Remotely, and the Greenhouse/Lever boards of companies you list (Coupang, Careem, Ninja Van, Deputy…). It keeps jobs in your regions, where "Remote" means open worldwide or to APAC. Then it applies your exclude list, blacklist and visa rules, scores each job 0–100 against your CV, and tracks it. |
 | **company boards** | `companies.yaml` lists about 100 companies searched through Greenhouse, Lever, Ashby and SmartRecruiters public APIs, so there is no scraping and no login. `search` also scans the career pages in `company_careers` (such as SDOC and du) for roles matching your keywords. `search --days 7` keeps only this week's postings. |
+| **watch** | For employers who post on their own site. Reads the pages in `watch:` in `config.yaml`, tries each fiscal year's address, follows links from Nepal Telecom's career page (addresses change from year to year: 2083/84 is `/post/vacancy-notices-208384`), and notifies you about new notices and PDFs. It can't read deadlines inside scanned notices, so open the notice to check. |
 | **add / inbox** | Jobs you find yourself on LinkedIn, Bayt, Seek, Naukrigulf or company sites. `add <url>` fetches the job description through the ATS API, the page's JobPosting data, or a browser. For LinkedIn, paste the description into a file with `--text-file`. To add several, drop URLs into `data/pipeline.md` and run `inbox`. |
 | **live** | Checks postings are still open. Closed ones are marked `discarded`. |
 | **evaluate** *(Claude Code)* | Writes `applications/<id>/report.md`. It covers: the role summary, a CV-vs-requirements table, gaps and how to address them honestly, level and positioning, pay against your targets, a tailoring plan, interview STAR stories, a posting check and keywords. It ends with a **1–5 rating and verdict**. It blocks on work authorization (no visa sponsorship) and on your dealbreakers. Below 4.0 it advises against applying. |
@@ -87,6 +88,7 @@ python -m hunter cv build                # rebuild your master CV PDF
 python -m hunter cv-check --job 62f55eab # ATS + keyword match for one job
 python -m hunter update-cv               # attach the new CV on each career site
 python -m hunter digest                  # rebuild the HTML page without fetching
+python -m hunter watch                   # new notices on employers' vacancy pages (--test-notify to try it)
 python -m hunter dashboard               # live dashboard in your browser (Ctrl+C to stop)
 python -m hunter retag                   # re-check stored ads for visa / foreign-worker signals
 python -m hunter cv tex [--data applications/<id>/cv.yaml]   # ATS-safe LaTeX for Overleaf
@@ -101,6 +103,12 @@ During `apply`, at each job:
 
 ```powershell
 schtasks /Create /SC DAILY /ST 08:00 /TN "JobHunter" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter search"
+```
+
+To check for new vacancy notices every morning and evening:
+```powershell
+schtasks /Create /SC DAILY /ST 09:00 /TN "JobHunterWatchAM" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter watch"
+schtasks /Create /SC DAILY /ST 18:00 /TN "JobHunterWatchPM" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter watch"
 ```
 
 ## Tips
