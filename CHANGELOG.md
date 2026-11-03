@@ -5,6 +5,8 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 
 ## [Unreleased]
 ### Added
+- Dashboard: an "Add to CV" button on each skill gap. After you confirm you really have the skill, it goes into the
+  master `cv.yaml` and the master PDF is rebuilt. Backups are kept in `data/cv-backups/`.
 - Dubizzle: job search links in the Dubai / UAE section, and its job profile in the career sites list.
 - `Install-WatchTask.ps1`: schedules `hunter watch` twice a day.
 - `hunter watch`: checks employers' own vacancy pages, follows links from listing pages, tries fiscal-year addresses

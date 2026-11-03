@@ -6,8 +6,10 @@ writes real text with real spaces: no icon fonts, no columns, no hyphenation, st
 the things that broke the old LaTeX PDF for parsers.
 """
 import html
+import json
+import os
 import re
-from datetime import date
+from datetime import date, datetime
 from pathlib import Path
 
 import yaml
@@ -136,6 +138,35 @@ def to_pdf(html_text: str, out: Path, channel: str = "") -> Path:
 
 def load(path: Path) -> dict:
     return yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
+
+
+def add_skill(path: Path, group: str, skill: str, backup_dir: Path = None) -> bool:
+    """Add a skill to one group in the master CV. Only the candidate may call this for skills they really have.
+    Edits the text so comments and layout survive, and keeps a backup. False if the skill is already there."""
+    path = Path(path)
+    raw = path.read_bytes().decode("utf-8")
+    before = yaml.safe_load(raw) or {}
+    groups = before.get("skills") or {}
+    if group not in groups:
+        raise ValueError(f"No skills group called {group!r} in {path.name}")
+    if any(str(s).strip().lower() == skill.lower() for s in groups[group] or []):
+        return False
+    item = skill if re.fullmatch(r"[A-Za-z][\w &/+.()-]*", skill) else json.dumps(skill, ensure_ascii=False)
+    line = re.compile(rf"^(  {re.escape(group)}: \[)(.*)\]([ \t]*\r?)$", re.M)
+    if len(line.findall(raw)) != 1:
+        raise ValueError(f"Can't find the {group!r} line as [a, b, c] in {path.name}; add it by hand")
+    text = line.sub(lambda m: f"{m[1]}{m[2]}{', ' if m[2].strip() else ''}{item}]{m[3]}", raw)
+    expected = {**before, "skills": {**groups, group: list(groups[group] or []) + [skill]}}
+    if yaml.safe_load(text) != expected:
+        raise ValueError(f"Adding {skill!r} would change more than that one skill; add it by hand")
+    if backup_dir:
+        Path(backup_dir).mkdir(parents=True, exist_ok=True)
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        (Path(backup_dir) / f"{path.stem}_{stamp}{path.suffix}").write_bytes(raw.encode("utf-8"))
+    temp = path.with_name(path.name + ".tmp")
+    temp.write_bytes(text.encode("utf-8"))
+    os.replace(temp, path)
+    return True
 
 
 # --- fact check: a tailored document must not contain numbers/claims absent from the master CV ---

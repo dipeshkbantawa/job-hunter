@@ -26,6 +26,7 @@ button,select,input,textarea{font:inherit;color:inherit}
 button{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer}
 button:hover{border-color:var(--accent)}
 button.primary{background:var(--accent);border-color:var(--accent);color:#fff}
+button:disabled{opacity:.45;cursor:not-allowed}
 select,input,textarea{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 8px}
 .wrap{padding:16px 20px;max-width:1600px;margin:0 auto}
 .kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:14px}
@@ -83,6 +84,15 @@ tbody tr.sel{background:var(--row-sel)}
 .miss{display:flex;flex-wrap:wrap;gap:3px;max-width:240px}
 .gaphead{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;padding:12px 14px;border-bottom:1px solid var(--line)}
 .gaps td:first-child{font-weight:550}
+.gaps td button{white-space:nowrap;padding:3px 9px;font-size:12.5px}
+dialog{background:var(--panel);color:var(--text);border:1px solid var(--line);border-radius:8px;padding:18px;width:min(440px,92vw)}
+dialog::backdrop{background:rgba(0,0,0,.45)}
+dialog h3{margin:0 0 10px}
+dialog label{display:block;margin:10px 0;font-size:13px}
+dialog input[type=text],dialog select{display:block;width:100%;margin-top:4px;padding:6px 8px;background:var(--bg);border:1px solid var(--line);border-radius:6px;box-sizing:border-box}
+dialog .confirm{display:flex;gap:8px;align-items:flex-start}
+dialog .warnbox{background:var(--warn-bg);color:var(--warn);border-radius:6px;padding:8px 10px;font-size:13px;margin:10px 0}
+dialog .actions{display:flex;justify-content:flex-end;gap:8px;margin-top:14px}
 .bar{height:6px;border-radius:3px;background:var(--bad);opacity:.7;min-width:2px}
 .legend{font-size:12px;color:var(--muted);margin:8px 2px 0}
 .notes{white-space:pre-wrap;font-size:13px;color:var(--muted)}
@@ -135,10 +145,11 @@ kbd{font-size:11px;border:1px solid var(--line);border-radius:4px;padding:0 4px}
     <div class="gaphead"><div><b>Skill gaps</b> <span class="muted">· keywords job ads ask for that your CV does not have, counted over the jobs matching your filters</span></div>
       <button id="gapcsv">Download CSV</button></div>
     <div class="tablebox"><table class="gaps">
-      <thead id="gaphead"><tr><th data-sort="skill">Skill</th><th data-sort="jobs" class="num">Jobs asking</th><th style="width:18%"></th><th data-sort="rated" class="num" title="Jobs you evaluated that ask for it">Evaluated</th><th data-sort="avg" class="num" title="Average rating of those evaluated jobs">Avg rating</th><th class="hide-sm">Example jobs</th></tr></thead>
+      <thead id="gaphead"><tr><th data-sort="skill">Skill</th><th data-sort="jobs" class="num">Jobs asking</th><th style="width:18%"></th><th data-sort="rated" class="num" title="Jobs you evaluated that ask for it">Evaluated</th><th data-sort="avg" class="num" title="Average rating of those evaluated jobs">Avg rating</th><th class="hide-sm">Example jobs</th><th></th></tr></thead>
       <tbody id="gaprows"></tbody>
     </table><div class="empty" id="gapempty" hidden>No missing skills for these jobs.</div></div>
   </div>
+<dialog id="skilldlg"></dialog>
 <p class="legend"><b>Rating</b>: your 1–5 evaluation of the job (4.0+ = worth applying). <b>ATS</b>: share of the ad's keywords that are in the CV you'd send (tailored CV if built, else your master CV). <b>Missing skills</b>: the ad's keywords that your CV lacks; the <b>Skill gaps</b> tab totals them across jobs. <b>Match</b>: the quick 0–100 score from <code>hunter search</code>.</p>
 </div>
 <div class="toast" id="toast"></div>
@@ -194,7 +205,7 @@ async function openOverleaf(id) {
   document.body.append(form); form.submit(); form.remove();
   toast("Opening " + (t.tailored ? "the tailored" : "your master") + " CV in Overleaf");
 }
-function toast(msg) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); setTimeout(() => t.classList.remove("on"), 2200); }
+function toast(msg, ms = 2200) { const t = $("toast"); t.textContent = msg; t.classList.add("on"); clearTimeout(t.timer); t.timer = setTimeout(() => t.classList.remove("on"), ms); }
 
 function statusChip(s) {
   const cls = ["offer","hired","interview"].includes(s) ? "good" : ["responded","assessment","applied"].includes(s) ? "info"
@@ -344,7 +355,53 @@ function renderGaps() {
     el("td", {class: "num"}, g.rated || "–"),
     el("td", {class: "num"}, g.avg == null ? "–" : g.avg.toFixed(1)),
     el("td", {class: "hide-sm sub"}, g.jobs.slice().sort((a, b) => (b.rating ?? -1) - (a.rating ?? -1)).slice(0, 3)
-      .map(j => j.company + " – " + j.title).join(" · ") + (g.jobs.length > 3 ? " …" : "")))));
+      .map(j => j.company + " – " + j.title).join(" · ") + (g.jobs.length > 3 ? " …" : "")),
+    el("td", {}, D.cv_skill_groups.length ? el("button", {title: "Add " + g.skill + " to your master CV",
+      onclick: e => { e.stopPropagation(); openAddSkill(g.skill); }}, "Add to CV") : ""))));
+}
+// Tidy spelling for a keyword going into the CV; the dialog lets you change it.
+function skillLabel(term) {
+  const exact = {saas: "SaaS", "ci/cd": "CI/CD", okta: "Okta", "wi-fi": "Wi-Fi", "sd-wan": "SD-WAN", "soc 2": "SOC 2", "iso 27001": "ISO 27001"}[term];
+  if (exact) return exact;
+  if (/^(sql|gcp|aws|siem|cissp|sso|saml|mfa|sla|edr|itil|vpn|dns|dhcp|lan|wan|vlan|bgp|ospf|mpls|json|ccna|ceh|mcsa|sccm|gdpr)$/.test(term)) return term.toUpperCase();
+  return term[0].toUpperCase() + term.slice(1);
+}
+function guessGroup(term) {
+  const rules = [[/incident|customer|support|ticket|escalat|sla|itil|documentation|helpdesk|service desk|jira|zendesk|root cause|knowledge/, /troubleshoot|support/i],
+    [/sql|python|script|git|ci\/cd|api|json|ansible|terraform|automation|bash|powershell/, /automation|script/i],
+    [/secur|siem|firewall|vpn|network|dns|routing|switching|phishing|edr|cissp|bgp|ospf|mpls/, /network|security/i]];
+  for (const [term_rx, group_rx] of rules) if (term_rx.test(term)) {
+    const hit = D.cv_skill_groups.find(g => group_rx.test(g));
+    if (hit) return hit;
+  }
+  return D.cv_skill_groups.find(g => /platform|cloud/i.test(g)) || D.cv_skill_groups[0];
+}
+function openAddSkill(term) {
+  const dlg = $("skilldlg");
+  const name = el("input", {type: "text", maxlength: "60", value: skillLabel(term)});
+  const group = el("select", {}, ...D.cv_skill_groups.map(g => { const o = new Option(g, g); o.selected = g === guessGroup(term); return o; }));
+  const check = el("input", {type: "checkbox"});
+  const add = el("button", {class: "primary", disabled: "", onclick: async () => {
+    add.disabled = true; add.textContent = "Adding…";
+    const r = await fetch("/api/cv-skill", {method: "POST", headers: {"Content-Type": "application/json", "X-Token": TOKEN},
+      body: JSON.stringify({skill: name.value, group: group.value})});
+    const out = await r.json().catch(() => ({}));
+    if (!r.ok) { add.disabled = false; add.textContent = "Add and rebuild CV"; return toast(out.error || "Could not add it: " + r.status); }
+    dlg.close();
+    await load();
+    toast(out.message, 6000);
+  }}, "Add and rebuild CV");
+  check.onchange = () => { add.disabled = !check.checked; };
+  const flagged = D.profile_gaps.includes(term);
+  dlg.replaceChildren(
+    el("h3", {}, "Add to master CV"),
+    flagged ? el("div", {class: "warnbox"}, "Your profile.md lists " + term + " as a gap you shouldn't claim. If that has changed, update profile.md too.") : "",
+    el("label", {}, "Skill as it should appear", name),
+    el("label", {}, "Skills section", group),
+    el("label", {class: "confirm"}, check, el("span", {}, "I have really done this and can give an example in an interview.")),
+    el("div", {class: "muted", style: "font-size:12.5px"}, "This adds it to cv.yaml and rebuilds your master CV. It stays listed for jobs with a tailored CV until you tailor them again."),
+    el("div", {class: "actions"}, el("button", {onclick: () => dlg.close()}, "Cancel"), add));
+  dlg.showModal();
 }
 function render() {
   $("tabs").replaceChildren(...TABS.map(([id, label, test]) =>

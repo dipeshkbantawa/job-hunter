@@ -7,7 +7,9 @@ import json
 import mimetypes
 import re
 import secrets
+import shutil
 import webbrowser
+from datetime import datetime
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -97,7 +99,42 @@ def _data(cfg, tracker):
     f = {k: ([dict(x) for x in v] if isinstance(v, list) else v) for k, v in f.items()}
     regions = [region(n)["label"] for n in (cfg["search"].get("regions") or ["Remote"])]
     return {"version": __version__, "jobs": jobs, "funnel": f, "statuses": STATUSES, "active": ACTIVE, "regions": regions,
-            "master_ats": _ats_check(master)[0] if master else None}
+            "master_ats": _ats_check(master)[0] if master else None,
+            "cv_skill_groups": list((_load_master(root).get("skills") or {})), "profile_gaps": _profile_gaps(root)}
+
+
+def _load_master(root: Path) -> dict:
+    return cvbuild.load(root / "cv.yaml") if (root / "cv.yaml").is_file() else {}
+
+
+def _profile_gaps(root: Path) -> str:
+    """The 'Gaps to be honest about' section of profile.md, so the dashboard can warn before they go in the CV."""
+    path = root / "profile.md"
+    text = path.read_text(encoding="utf-8") if path.is_file() else ""
+    m = re.search(r"^## Gaps to be honest about\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m.group(1).lower() if m else ""
+
+
+def add_cv_skill(cfg, group: str, skill: str) -> dict:
+    """Add a skill the candidate confirmed to the master CV, then rebuild the master PDF so the gap clears."""
+    root = cfg["_root"]
+    backups = root / "data" / "cv-backups"
+    if not cvbuild.add_skill(root / "cv.yaml", group, skill, backups):
+        return {"added": False, "message": f"{skill} is already in {group}"}
+    resume = _inside(root, (cfg.get("profile") or {}).get("resume"))
+    if not resume or resume.suffix.lower() != ".pdf":
+        return {"added": True, "message": f"Added {skill} to cv.yaml. Run `hunter cv build` to make the PDF."}
+    try:
+        stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        shutil.copy2(resume, backups / f"{resume.stem}_{stamp}{resume.suffix}")
+        channel = (cfg.get("browser") or {}).get("channel", "")
+        cvbuild.to_pdf(cvbuild.render_cv(_load_master(root)), resume, channel)
+        result = atscheck.check(resume)
+    except Exception as ex:
+        return {"added": True, "message": f"Added {skill} to cv.yaml, but the PDF was not rebuilt ({ex}). "
+                                          "Close the PDF if it's open, then run `hunter cv build`."}
+    too_long = f" It is now {result.pages} pages: consider trimming it." if result.pages > 2 else ""
+    return {"added": True, "message": f"Added {skill}. Master CV rebuilt: ATS {result.score}/100, {result.pages} pages.{too_long}"}
 
 
 def make_handler(cfg, tracker, token):
@@ -161,12 +198,21 @@ def make_handler(cfg, tracker, token):
         def do_POST(self):
             if not self._host_ok() or self.headers.get("X-Token") != token:
                 return self._send(403, {"error": "forbidden"})
-            if urlparse(self.path).path != "/api/status":
+            path = urlparse(self.path).path
+            if path not in ("/api/status", "/api/cv-skill"):
                 return self._send(404, {"error": "not found"})
             try:
                 body = json.loads(self.rfile.read(int(self.headers.get("Content-Length") or 0)) or b"{}")
             except ValueError:
                 return self._send(400, {"error": "bad json"})
+            if path == "/api/cv-skill":
+                skill = " ".join(str(body.get("skill") or "").split())
+                if not skill or len(skill) > 60:
+                    return self._send(400, {"error": "Enter a skill of up to 60 characters"})
+                try:
+                    return self._send(200, add_cv_skill(cfg, str(body.get("group") or ""), skill))
+                except (ValueError, OSError) as ex:
+                    return self._send(400, {"error": str(ex)})
             row = self._row({"id": [str(body.get("id", ""))]})
             status = body.get("status")
             if not row or status not in STATUSES:
