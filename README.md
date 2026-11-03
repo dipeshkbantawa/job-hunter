@@ -105,11 +105,7 @@ During `apply`, at each job:
 schtasks /Create /SC DAILY /ST 08:00 /TN "JobHunter" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter search"
 ```
 
-To check for new vacancy notices every morning and evening:
-```powershell
-schtasks /Create /SC DAILY /ST 09:00 /TN "JobHunterWatchAM" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter watch"
-schtasks /Create /SC DAILY /ST 18:00 /TN "JobHunterWatchPM" /TR "cmd /c cd /d D:\path\to\job-hunter && .venv\Scripts\python.exe -m hunter watch"
-```
+To check for new vacancy notices at 09:00 and 18:00, open PowerShell as administrator in this folder and run `.\Install-WatchTask.ps1`. If the PC was off at those times, the check runs when it is next available.
 
 ## Tips
 - The job APIs are mostly remote boards. For Dubai, New Zealand and Nepal, use the search links in the digest and put what you find in `data/pipeline.md`. You can also add companies hiring there to `greenhouse_boards` or `lever_companies`, using the slug after `boards.greenhouse.io/` or `jobs.lever.co/`.

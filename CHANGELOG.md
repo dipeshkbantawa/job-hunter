@@ -5,6 +5,7 @@ Versions follow `MAJOR.MINOR.PATCH`: a new feature bumps MINOR, a fix bumps PATC
 
 ## [Unreleased]
 ### Added
+- `Install-WatchTask.ps1`: schedules `hunter watch` twice a day.
 - `hunter watch`: checks employers' own vacancy pages, follows links from listing pages, tries fiscal-year addresses
   such as Nepal Telecom's `/post/vacancy-notices-208384`, and sends a Windows notification (optional phone push) when a new notice appears.
 - `companies.yaml`: about 100 verified company boards searched through their public APIs. New Ashby and SmartRecruiters
